@@ -1,6 +1,7 @@
 import asyncio
 from json import JSONDecodeError
 
+from fastapi.concurrency import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -11,6 +12,8 @@ from sqlalchemy.exc import (DataError, IntegrityError, InterfaceError,
                             OperationalError, ProgrammingError,
                             SQLAlchemyError)
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.core.database import Base, master_db_engine
+from logs.logging import logger
 
 from app.core.settings import settings
 from app.utils.exception_handler import (authentication_error_handler,
@@ -68,8 +71,21 @@ app.add_middleware(
 
 app.mount("/public", StaticFiles(directory="./public"), name="static")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with master_db_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        logger.info('[*] Postgresql Database connected ✅')
+    yield
+
+app.router.lifespan_context = lifespan
+
+
+
 from app.api.attendance.routers import router as attendance_router
+from app.api.auth.routers import router as auth_router
 app.include_router(attendance_router)
+app.include_router(auth_router)
 
 
 if __name__ == "__main__":
