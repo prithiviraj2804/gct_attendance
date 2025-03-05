@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth.schemas import RoleResponse, UserCreate, UserResponse, UserUpdate
+from app.api.auth.schemas import LoginSchema, RoleResponse, UserCreate, UserResponse, UserUpdate
 from app.api.auth.services import RoleService, UserService
 from app.core.database import get_session
 
@@ -33,3 +33,8 @@ async def get_user_by_id(user_id: str, db: AsyncSession = Depends(get_session)):
 @router.put("/users/{user_id}")
 async def update_user(user_id: str, user_data: UserUpdate, db: AsyncSession = Depends(get_session)):
     return await UserService(db).update_user(user_id, user_data)
+
+
+@router.post("/login")
+async def login(user_data: LoginSchema, db: AsyncSession = Depends(get_session)):
+    return await UserService(db).login_user(user_data)
