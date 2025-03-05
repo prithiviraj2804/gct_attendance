@@ -1,6 +1,6 @@
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -13,10 +13,10 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str]
-    username: Optional[str]
-    password: Optional[str]
-    role_id : Optional[UUID]
+    name : Optional[str] = None
+    username : Optional[str] = None
+    password: Optional[str] = None
+    role_id : Optional[UUID] = None
 
 class RoleforUser(BaseModel):
     name: str
