@@ -2,8 +2,9 @@ import asyncio
 from json import JSONDecodeError
 
 from fastapi.concurrency import asynccontextmanager
+from fastapi.templating import Jinja2Templates
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -69,7 +70,12 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-app.mount("/public", StaticFiles(directory="./public"), name="static")
+templates = Jinja2Templates(directory="templates")
+app.mount("/templates/static", StaticFiles(directory="./templates/static"), name="static")
+
+@app.get("/")
+async def read_root(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

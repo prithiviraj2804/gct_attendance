@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Form</title>
+</head>
+<body>
+    <h1>Attendance Form - Section {{ section }}</h1>
+
+    <!-- Form to display the students and mark attendance -->
+    <form id="attendanceForm">
+        <div id="studentList">
+            {% for student in students %}
+                <div>
+                    <input type="checkbox" name="attendance_{{ student.id }}" value="Present"> 
+                    {{ student.name }} (Present)
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit">Submit Attendance</button>
+    </form>
+
+    <script>
+        // Handle form submission with JavaScript
+        document.getElementById("attendanceForm").addEventListener("submit", function(event) {
+            event.preventDefault();  // Prevent the default form submission
+
+            // Create an array to store attendance data
+            const attendanceData = [];
+
+            // Get all checkboxes and gather the selected ones
+            const formElements = event.target.elements;
+            for (let element of formElements) {
+                if (element.type === "checkbox" && element.checked) {
+                    // Get the student ID from the checkbox name
+                    const studentId = element.name.split('_')[1];  // Extract the student ID from the name
+                    const status = element.value;  // "Present" if checked
+
+                    // Add to the attendance data array
+                    attendanceData.push({ student_id: studentId, status: status });
+                }
+            }
+
+            // Send the attendance data as a POST request to the backend
+            fetch(`/submit_attendance/{{ section }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',  // Ensure the content type is JSON
+                },
+                body: JSON.stringify(attendanceData)  // Convert the data to JSON
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Attendance submitted successfully!');
+                console.log(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to submit attendance.');
+            });
+        });
+    </script>
+</body>
+</html>
