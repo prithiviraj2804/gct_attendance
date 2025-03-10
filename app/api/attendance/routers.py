@@ -3,7 +3,7 @@
 from datetime import datetime
 import io
 from typing import List
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.api.attendance.models import Attendance, Student
 from main import templates
@@ -15,7 +15,11 @@ import pandas as pd
 router = APIRouter()
 
 @router.post("/upload_students/")
-async def upload_students(file: UploadFile = File(...), db: AsyncSession = Depends(get_session)):
+async def upload_students(
+    section: str = Form(...),  # Accept 'section' from form data
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_session)
+):
     # Save the uploaded file temporarily
     contents = await file.read()
 
@@ -26,24 +30,28 @@ async def upload_students(file: UploadFile = File(...), db: AsyncSession = Depen
     try:
         df = pd.read_excel(file_like_object, engine="openpyxl")
     except Exception as e:
-        # Log the actual exception for better debugging
         print(f"Error reading Excel file: {e}")
         raise HTTPException(status_code=400, detail="Invalid Excel file")
 
     # Check if required columns exist
-    required_columns = ["name", "section"]
+    required_columns = ["name"]
     if not all(col in df.columns for col in required_columns):
-        raise HTTPException(status_code=400, detail="Excel file must contain 'name' and 'section' columns")
+        raise HTTPException(status_code=400, detail="Excel file must contain 'name' column")
 
     # Iterate over the rows in the DataFrame and insert into the database
     for _, row in df.iterrows():
-        student = Student(name=row["name"], section=row["section"])
+        student = Student(name=row["name"], section=section)
         db.add(student)
 
     # Commit the changes to the database
     await db.commit()
 
     return {"message": f"Successfully uploaded {len(df)} students!"}
+
+
+@router.get("/upload_students/")
+async def upload_students(request: Request):
+    return templates.TemplateResponse("upload_students.html", {"request": request})
 
 @router.get("/mark_attendance/{section}")
 async def mark_attendance(section: str, request: Request, db: AsyncSession = Depends(get_session)):
@@ -131,6 +139,8 @@ async def view_attendance(section: str, request: Request, db: AsyncSession = Dep
     )
     attendance_data = attendance_records.scalars().all()
 
+    count = len(attendance_data)
+
     # Map the attendance data to a dictionary with student ID as key
     attendance_map = {attendance.student_id: attendance for attendance in attendance_data}
 
@@ -140,5 +150,6 @@ async def view_attendance(section: str, request: Request, db: AsyncSession = Dep
         "section": section,
         "students": students,
         "current_date": current_date,
-        "attendance_map": attendance_map
+        "attendance_map": attendance_map,
+        "count": count
     })

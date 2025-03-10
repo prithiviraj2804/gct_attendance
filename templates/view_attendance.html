@@ -22,6 +22,7 @@
             <tr>
                 <td>{{ student.id }}</td>
                 <td>{{ student.name }}</td>
+
                 <td>
                     {% if student.id in attendance_map %}
                         {{ attendance_map[student.id].status }}
@@ -33,5 +34,6 @@
             {% endfor %}
         </tbody>
     </table>
+    <h1>{{count}}</h1>
 </body>
 </html>
