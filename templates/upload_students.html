@@ -4,17 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Students</title>
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Upload Students</h1>
-    <form action="/upload_students" method="post" enctype="multipart/form-data">
-        <label for="section">Section</label>
-        <input type="text" id="section" name="section" required>
-        <br>
-        <label for="file">Choose XLSX file:</label>
-        <input type="file" id="file" name="file" accept=".xlsx" required>
-        <button type="submit">Upload</button>
+    <h1>Upload Student Records</h1>
+    <form action="/upload_students/" method="post" enctype="multipart/form-data">
+        <label for="batch_name">Batch Name:</label>
+        <input type="text" id="batch_name" name="batch_name" required><br><br>
+
+        <label for="year_name">Year Name:</label>
+        <input type="text" id="year_name" name="year_name" required><br><br>
+
+        <label for="section_name">Section Name:</label>
+        <input type="text" id="section_name" name="section_name" required><br><br>
+
+        <label for="file">Upload File (Excel):</label>
+        <input type="file" id="file" name="file" required><br><br>
+
+        <button type="submit">Upload Students</button>
     </form>
 </body>
 </html>

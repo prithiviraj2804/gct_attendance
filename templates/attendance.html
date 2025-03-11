@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Form</title>
+    <title>Attendance Form - Section {{ section }}</title>
 </head>
 <body>
     <h1>Attendance Form - Section {{ section }}</h1>
@@ -13,9 +13,15 @@
         <div id="studentList">
             {% for student in students %}
                 <div>
-                    <input type="checkbox" name="attendance_{{ student.id }}" value="Present"> 
-                    {{ student.name }} (Present)
+                    <label>{{ student.name }}</label><br>
+                    <!-- Radio buttons for Present and Absent -->
+                    <input type="radio" name="attendance_{{ student.id }}" value="Present" id="present_{{ student.id }}">
+                    <label for="present_{{ student.id }}">Present</label>
+                    
+                    <input type="radio" name="attendance_{{ student.id }}" value="Absent" id="absent_{{ student.id }}">
+                    <label for="absent_{{ student.id }}">Absent</label>
                 </div>
+                <br>
             {% endfor %}
         </div>
         <button type="submit">Submit Attendance</button>
@@ -29,13 +35,13 @@
             // Create an array to store attendance data
             const attendanceData = [];
 
-            // Get all checkboxes and gather the selected ones
+            // Get all radio buttons and gather the selected ones
             const formElements = event.target.elements;
             for (let element of formElements) {
-                if (element.type === "checkbox" && element.checked) {
-                    // Get the student ID from the checkbox name
+                if (element.type === "radio" && element.checked) {
+                    // Get the student ID from the radio button name
                     const studentId = element.name.split('_')[1];  // Extract the student ID from the name
-                    const status = element.value;  // "Present" if checked
+                    const status = element.value;  // "Present" or "Absent"
 
                     // Add to the attendance data array
                     attendanceData.push({ student_id: studentId, status: status });
@@ -43,7 +49,7 @@
             }
 
             // Send the attendance data as a POST request to the backend
-            fetch(`/submit_attendance/{{ section }}`, {
+            fetch(`/submit_attendance/2022-2026/III/B`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',  // Ensure the content type is JSON

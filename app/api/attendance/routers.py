@@ -1,11 +1,11 @@
-
-
 from datetime import datetime
 import io
 from typing import List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from sqlalchemy import UUID
 
-from app.api.attendance.models import Attendance, Student
+from app.api.attendance.models import Attendance, Student, Batch, Year, Section
+from app.api.attendance.services import AttendanceService
 from main import templates
 from app.core.database import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,140 +16,99 @@ router = APIRouter()
 
 @router.post("/upload_students/")
 async def upload_students(
-    section: str = Form(...),  # Accept 'section' from form data
+    batch_name: str = Form(...),  # Accept 'batch_name' from form data
+    year_name: str = Form(...),   # Accept 'year_name' from form data
+    section_name: str = Form(...), # Accept 'section_name' from form data
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_session)
 ):
-    # Save the uploaded file temporarily
-    contents = await file.read()
-
-    # Wrap the byte content into a BytesIO object
-    file_like_object = io.BytesIO(contents)
-
-    # Load the Excel file into pandas DataFrame
-    try:
-        df = pd.read_excel(file_like_object, engine="openpyxl")
-    except Exception as e:
-        print(f"Error reading Excel file: {e}")
-        raise HTTPException(status_code=400, detail="Invalid Excel file")
-
-    # Check if required columns exist
-    required_columns = ["name"]
-    if not all(col in df.columns for col in required_columns):
-        raise HTTPException(status_code=400, detail="Excel file must contain 'name' column")
-
-    # Iterate over the rows in the DataFrame and insert into the database
-    for _, row in df.iterrows():
-        student = Student(name=row["name"], section=section)
-        db.add(student)
-
-    # Commit the changes to the database
-    await db.commit()
-
-    return {"message": f"Successfully uploaded {len(df)} students!"}
-
+    # Pass batch_name, year_name, and section_name to the service
+    result = await AttendanceService(db).upload_file(file, batch_name, year_name, section_name)
+    return result
 
 @router.get("/upload_students/")
 async def upload_students(request: Request):
     return templates.TemplateResponse("upload_students.html", {"request": request})
 
-@router.get("/mark_attendance/{section}")
-async def mark_attendance(section: str, request: Request, db: AsyncSession = Depends(get_session)):
-    # Get the current date
-    current_date = datetime.utcnow().date()
+@router.get("/mark_attendance/{batch_name}/{year_name}/{section_name}")
+async def mark_attendance(batch_name: str, year_name: str, section_name: str, request: Request, db: AsyncSession = Depends(get_session)):
+    # Pass batch_name, year_name, and section_name to the service to get the students
+    result = await AttendanceService(db).get_students(batch_name, year_name, section_name, request)
+    return result
 
-    # Fetch the students for the given section
-    result = await db.execute(select(Student).filter(Student.section == section))
-    students = result.scalars().all()
+@router.post("/submit_attendance/{batch_name}/{year_name}/{section_name}")
+async def submit_attendance(batch_name: str, year_name: str, section_name: str, attendance_data: List[dict], db: AsyncSession = Depends(get_session)):
+    # Pass batch_name, year_name, section_name, and attendance_data to the service for submission
+    result = await AttendanceService(db).submit_attendance(batch_name, year_name, section_name, attendance_data)
+    return result
 
-    # Render the template with student data and the current date
-    return templates.TemplateResponse("attendance.html", {
-        "request": request,
-        "section": section,
-        "students": students,
-        "current_date": current_date
-    })
+@router.get("/view_attendance/{batch_name}/{year_name}/{section_name}")
+async def view_attendance(batch_name: str, year_name: str, section_name: str, request: Request, db: AsyncSession = Depends(get_session)):
+    # Pass batch_name, year_name, and section_name to the service for viewing attendance
+    result = await AttendanceService(db).view_attendance(batch_name, year_name, section_name, request)
+    return result
 
 
-@router.post("/submit_attendance/{section}")
-async def submit_attendance(section: str, attendance_data: List[dict], db: AsyncSession = Depends(get_session)):
-    """
-    Submit attendance for a specific section. Each attendance record contains a student ID and status ("Present" or "Absent").
-    """
-    # Fetch the students in the given section
-    result = await db.execute(select(Student).filter(Student.section == section))
-    students = result.scalars().all()
+'''
+=======================================================
+Batch , Year, Section, Student, Attendance
+=======================================================
 
-    # Get today's date for attendance records
-    current_date = datetime.utcnow().date()
+'''
 
-    # If no students found in the section
-    if not students:
-        raise HTTPException(status_code=404, detail="No students found for this section")
-
-    # Map incoming attendance data to a dictionary with student_id as key
-    student_attendance_map = {str(student.id): student for student in students}
-    
-    # Check if all student IDs in attendance_data exist
-    for attendance in attendance_data:
-        student_id = attendance.get('student_id')
-        if str(student_id) not in student_attendance_map:
-            raise HTTPException(status_code=400, detail=f"Invalid student ID: {student_id}")
-
-    # Process the attendance
-    for attendance in attendance_data:
-        student_id = attendance.get('student_id')
-        status = attendance.get('status')  # "Present" or "Absent"
-
-        # Check if the attendance for this student already exists
-        existing_attendance = await db.execute(
-            select(Attendance).filter(Attendance.student_id == student_id, Attendance.date == current_date)
-        )
-        existing_attendance_record = existing_attendance.scalars().first()
-
-        if existing_attendance_record:
-            # Update the status of existing attendance
-            existing_attendance_record.status = status
-        else:
-            # Add a new attendance record for the student
-            new_attendance = Attendance(student_id=student_id, date=current_date, status=status)
-            db.add(new_attendance)
-
-    # Commit the changes to the database
+# POST route to create a new batch
+@router.post("/batch/")
+async def create_batch(name: str, db: AsyncSession = Depends(get_session)):
+    batch = Batch(name=name)
+    db.add(batch)
     await db.commit()
+    return {"message": "Batch created successfully!", "batch": {"id": batch.id, "name": batch.name}}
 
-    return {"message": "Attendance has been successfully submitted!"}
+# GET route to get all batches
+@router.get("/batch/")
+async def get_batches(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Batch))
+    batches = result.scalars().all()
+    return {"batches": [{"id": batch.id, "name": batch.name} for batch in batches]}
 
-@router.get("/view_attendance/{section}")
-async def view_attendance(section: str, request: Request, db: AsyncSession = Depends(get_session)):
-    # Fetch the students in the given section
-    result = await db.execute(select(Student).filter(Student.section == section))
-    students = result.scalars().all()
+# POST route to create a new year under a specific batch
+@router.post("/year/{batch_id}/")
+async def create_year(batch_id: str, name: str, db: AsyncSession = Depends(get_session)):
+    # Check if the batch exists
+    batch = await db.execute(select(Batch).filter(Batch.id == batch_id))
+    batch = batch.scalars().first()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
 
-    # Get today's date for attendance records
-    current_date = datetime.utcnow().date()
+    year = Year(name=name, batch_id=batch_id)
+    db.add(year)
+    await db.commit()
+    return {"message": "Year created successfully!", "year": {"id": year.id, "name": year.name}}
 
-    # If no students found in the section
-    if not students:
-        raise HTTPException(status_code=404, detail="No students found for this section")
+# GET route to get all years for a specific batch
+@router.get("/year/{batch_id}/")
+async def get_years(batch_id: str, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Year).filter(Year.batch_id == batch_id))
+    years = result.scalars().all()
+    return {"years": [{"id": year.id, "name": year.name} for year in years]}
 
-    # Fetch the attendance records for the students in the section
-    attendance_records = await db.execute(
-        select(Attendance).join(Student).filter(Student.section == section, Attendance.date == current_date)
-    )
-    attendance_data = attendance_records.scalars().all()
+# POST route to create a new section under a specific year
+@router.post("/section/{year_id}/")
+async def create_section(year_id: str, name: str, db: AsyncSession = Depends(get_session)):
+    # Check if the year exists
+    year = await db.execute(select(Year).filter(Year.id == year_id))
+    year = year.scalars().first()
+    if not year:
+        raise HTTPException(status_code=404, detail="Year not found")
 
-    count = len(attendance_data)
+    section = Section(name=name, year_id=year_id)
+    db.add(section)
+    await db.commit()
+    return {"message": "Section created successfully!", "section": {"id": section.id, "name": section.name}}
 
-    # Map the attendance data to a dictionary with student ID as key
-    attendance_map = {attendance.student_id: attendance for attendance in attendance_data}
-
-    # Render the template with attendance data
-    return templates.TemplateResponse("view_attendance.html", {
-        "request": request,
-        "section": section,
-        "students": students,
-        "current_date": current_date,
-        "attendance_map": attendance_map,
-        "count": count
-    })
+# GET route to get all sections for a specific year
+@router.get("/section/{year_id}/")
+async def get_sections(year_id: int, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Section).filter(Section.year_id == year_id))
+    sections = result.scalars().all()
+    return {"sections": [{"id": section.id, "name": section.name} for section in sections]}
