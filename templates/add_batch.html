@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Batch, Year, and Section</title>
+    <script>
+        async function fetchData() {
+            const batchResponse = await fetch('/batch/');
+            const yearResponse = await fetch('/year/');
+            const sectionResponse = await fetch('/section/');
+            const batches = await batchResponse.json();
+            const years = await yearResponse.json();
+            const sections = await sectionResponse.json();
+
+            const batchTable = document.getElementById('batchTable');
+            const yearTable = document.getElementById('yearTable');
+            const sectionTable = document.getElementById('sectionTable');
+
+            batches.batches.forEach(batch => {
+                const row = batchTable.insertRow();
+                row.insertCell(0).innerText = batch.id;
+                row.insertCell(1).innerText = batch.name;
+            });
+
+            years.years.forEach(year => {
+                const row = yearTable.insertRow();
+                row.insertCell(0).innerText = year.id;
+                row.insertCell(1).innerText = year.batch_id;
+                row.insertCell(2).innerText = year.name;
+            });
+
+            sections.sections.forEach(section => {
+                const row = sectionTable.insertRow();
+                row.insertCell(0).innerText = section.id;
+                row.insertCell(1).innerText = section.year_id;
+                row.insertCell(2).innerText = section.name;
+            });
+        }
+
+        window.onload = fetchData;
+    </script>
+</head>
+<body>
+    <h1>Add Batch</h1>
+    <form action="/batch/" method="post">
+        <label for="batch_name">Batch Name:</label>
+        <input type="text" id="batch_name" name="name" required><br><br>
+        <input type="submit" value="Add Batch">
+    </form>
+
+    <h1>Existing Batches</h1>
+    <table border="1" id="batchTable">
+        <tr>
+            <th>Batch ID</th>
+            <th>Batch Name</th>
+        </tr>
+    </table>
+
+    <h1>Add Year</h1>
+    <form action="/year/{batch_id}/" method="post">
+        <label for="batch_id">Batch ID:</label>
+        <input type="text" id="batch_id" name="batch_id" required><br><br>
+        <label for="year_name">Year Name:</label>
+        <input type="text" id="year_name" name="name" required><br><br>
+        <input type="submit" value="Add Year">
+    </form>
+
+    <h1>Existing Years</h1>
+    <table border="1" id="yearTable">
+        <tr>
+            <th>Year ID</th>
+            <th>Batch ID</th>
+            <th>Year Name</th>
+        </tr>
+    </table>
+
+    <h1>Add Section</h1>
+    <form action="/section/{year_id}/" method="post">
+        <label for="year_id">Year ID:</label>
+        <input type="text" id="year_id" name="year_id" required><br><br>
+        <label for="section_name">Section Name:</label>
+        <input type="text" id="section_name" name="name" required><br><br>
+        <input type="submit" value="Add Section">
+    </form>
+
+    <h1>Existing Sections</h1>
+    <table border="1" id="sectionTable">
+        <tr>
+            <th>Section ID</th>
+            <th>Year ID</th>
+            <th>Section Name</th>
+        </tr>
+    </table>
+</body>
+</html>

@@ -58,7 +58,7 @@ Batch , Year, Section, Student, Attendance
 
 # POST route to create a new batch
 @router.post("/batch/")
-async def create_batch(name: str, db: AsyncSession = Depends(get_session)):
+async def create_batch(name: str = Form(...), db: AsyncSession = Depends(get_session)):
     batch = Batch(name=name)
     db.add(batch)
     await db.commit()
@@ -73,7 +73,7 @@ async def get_batches(db: AsyncSession = Depends(get_session)):
 
 # POST route to create a new year under a specific batch
 @router.post("/year/{batch_id}/")
-async def create_year(batch_id: str, name: str, db: AsyncSession = Depends(get_session)):
+async def create_year(batch_id: str, name: str = Form(...), db: AsyncSession = Depends(get_session)):
     # Check if the batch exists
     batch = await db.execute(select(Batch).filter(Batch.id == batch_id))
     batch = batch.scalars().first()
@@ -92,9 +92,16 @@ async def get_years(batch_id: str, db: AsyncSession = Depends(get_session)):
     years = result.scalars().all()
     return {"years": [{"id": year.id, "name": year.name} for year in years]}
 
+# GET route to get all years
+@router.get("/year/")
+async def get_all_years(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Year))
+    years = result.scalars().all()
+    return {"years": [{"id": year.id, "batch_id": year.batch_id, "name": year.name} for year in years]}
+
 # POST route to create a new section under a specific year
 @router.post("/section/{year_id}/")
-async def create_section(year_id: str, name: str, db: AsyncSession = Depends(get_session)):
+async def create_section(year_id: str, name: str = Form(...), db: AsyncSession = Depends(get_session)):
     # Check if the year exists
     year = await db.execute(select(Year).filter(Year.id == year_id))
     year = year.scalars().first()
@@ -112,3 +119,14 @@ async def get_sections(year_id: int, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Section).filter(Section.year_id == year_id))
     sections = result.scalars().all()
     return {"sections": [{"id": section.id, "name": section.name} for section in sections]}
+
+# GET route to get all sections
+@router.get("/section/")
+async def get_all_sections(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Section))
+    sections = result.scalars().all()
+    return {"sections": [{"id": section.id, "year_id": section.year_id, "name": section.name} for section in sections]}
+
+@router.get("/add_batch/")
+async def add_batch(request: Request):
+    return templates.TemplateResponse("add_batch.html", {"request": request})
