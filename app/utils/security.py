@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 import os
 from typing import Optional
 from jose import jwt
+from sqlalchemy import select
 from app.core.settings import settings
 import hashlib
 import hmac
@@ -9,6 +10,12 @@ import base64
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from jose import JWTError
+from app.api.auth.models import User
+from app.core.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 SECRET_KEY = settings.secret_key
 ALGORITHM = settings.algorithm
@@ -45,71 +52,30 @@ def decode_token(token: str):
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
 
-'''
-=====================================================
-# Hash Api key
-=====================================================
-'''
-
-
-def hash_key(api_key: str):
-    secret_key = SECRET_KEY.encode()
-    hashed = hmac.new(secret_key, api_key.encode(), hashlib.sha256).digest()
-    return base64.b64encode(hashed).decode()
-
-
-'''
-=====================================================
-# Verify Api key
-=====================================================
-'''
-
-
-def verify_key(api_key: str, hashed_key: str) -> bool:
-    return hash_key(api_key) == hashed_key
-
-
-'''
-=====================================================
-# Encrypt Secret
-=====================================================
-'''
-
-
-def encrypt_secret(secret: str) -> str:
-    """Encrypts 2FA secret using AES-256 encryption."""
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(base64.b64decode(SECRET_KEY)),
-                    modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-
-    # Pad the secret
-    padder = padding.PKCS7(algorithms.AES.block_size).padder()
-    padded_data = padder.update(secret.encode()) + padder.finalize()
-
-    # Encrypt
-    encrypted_secret = encryptor.update(padded_data) + encryptor.finalize()
-    return base64.b64encode(iv + encrypted_secret).decode()
-
-
-'''
-=====================================================
-# Decrypt Secret
-=====================================================
-'''
-
-
-def decrypt_secret(encrypted_secret: str) -> str:
-    """Decrypts an encrypted 2FA secret."""
-    encrypted_secret = base64.b64decode(encrypted_secret)
-    iv = encrypted_secret[:16]
-    cipher = Cipher(algorithms.AES(base64.b64decode(SECRET_KEY)),
-                    modes.CBC(iv), backend=default_backend())
-    decryptor = cipher.decryptor()
-
-    padded_secret = decryptor.update(
-        encrypted_secret[16:]) + decryptor.finalize()
-
-    # Unpad the secret
-    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
-    return unpadder.update(padded_secret) + unpadder.finalize()
+async def get_current_user(
+        credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+        db: AsyncSession = Depends(get_session)
+):
+    try:
+        payload = decode_token(credentials.credentials)
+        user_id: str = payload.get("user_id")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        return user
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

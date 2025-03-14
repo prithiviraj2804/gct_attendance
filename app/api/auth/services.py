@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.api.auth.models import Role, User
 from app.utils.password_utils import get_password_hash,verify_password
+from app.utils.security import create_access_token
 
 
 class RoleService:
@@ -90,5 +91,6 @@ class UserService:
                 detail={"message": "Invalid username or password"},
                 status_code=401
             )
-
-        return {"message": "Login successful"}
+        
+        token = create_access_token(data={"user_id": user.id, "role": user.role.name})
+        return {"access_token": token, "token_type": "bearer"}

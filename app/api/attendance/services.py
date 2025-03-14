@@ -14,7 +14,7 @@ class AttendanceService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def upload_file(self, file, batch_name: str, year_name: str, section_name: str):
+    async def upload_file(self, data,file):
         # Save the uploaded file temporarily
         contents = await file.read()
 
@@ -34,17 +34,17 @@ class AttendanceService:
             raise HTTPException(status_code=400, detail="Excel file must contain 'name' column")
 
         # Fetch the batch, year, and section
-        batch = await self.db.execute(select(Batch).filter(Batch.name == batch_name))
+        batch = await self.db.execute(select(Batch).filter(Batch.name == data.batch_name))
         batch = batch.scalars().first()
         if not batch:
             raise HTTPException(status_code=404, detail="Batch not found")
 
-        year = await self.db.execute(select(Year).filter(Year.name == year_name, Year.batch_id == batch.id))
+        year = await self.db.execute(select(Year).filter(Year.name == data.year_name, Year.batch_id == batch.id))
         year = year.scalars().first()
         if not year:
             raise HTTPException(status_code=404, detail="Year not found")
 
-        section = await self.db.execute(select(Section).filter(Section.name == section_name, Section.year_id == year.id))
+        section = await self.db.execute(select(Section).filter(Section.name == data.section_name, Section.year_id == year.id))
         section = section.scalars().first()
         if not section:
             raise HTTPException(status_code=404, detail="Section not found")
@@ -57,7 +57,7 @@ class AttendanceService:
         # Commit the changes to the database
         await self.db.commit()
 
-        return {"message": f"Successfully uploaded {len(df)} students to {section_name}!"}
+        return {"message": f"Successfully uploaded {len(df)} students to {section.name}!"}
 
     async def get_students(self, batch_name: str, year_name: str, section_name: str, request):
         # Fetch batch, year, and section
