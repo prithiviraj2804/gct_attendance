@@ -43,6 +43,24 @@ class AttendanceService:
         await self.db.commit()
         return {"message": "Students uploaded successfully", "total": len(students)}
 
+    async def get_students_by_section(self, user):
+        """
+        Fetch all students from the section assigned to the faculty.
+        Admins can view all students.
+        """
+            # 🔹 Ensure the faculty is assigned to a section
+        if not user.section_id:
+            raise HTTPException(status_code=403, detail="Access Denied: No section assigned.")
+            
+            # 🔹 Fetch students in the faculty's section
+        query = select(Student).where(Student.section_id == user.section_id)
+
+        result = await self.db.execute(query)
+        students = result.scalars().all()
+
+        return students
+    
+
 
     # 🔹 Create Department (Only Admins)
 

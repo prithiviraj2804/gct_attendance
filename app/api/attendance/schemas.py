@@ -58,3 +58,9 @@ class StudentCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StudentResponse(BaseModel):
+    id: UUID
+    name: str
+    section_id: UUID

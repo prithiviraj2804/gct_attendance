@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.api.attendance.models import Attendance, Batch, Section, Student, Year
-from app.api.attendance.schemas import AttendanceCreate, BatchCreate, DepartmentCreate, SectionCreate, UploadFileSchema, YearCreate
+from app.api.attendance.schemas import AttendanceCreate, BatchCreate, DepartmentCreate, SectionCreate, StudentResponse, UploadFileSchema, YearCreate
 from app.api.attendance.services import AttendanceService
 from app.core.database import get_session
 from app.utils.security import get_current_user
@@ -39,6 +39,13 @@ async def upload_students(
     
     return result
 
+@router.get("/students", response_model=List[StudentResponse])
+async def fetch_students(
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    students = await AttendanceService(db).get_students_by_section(user)
+    return students
 
 
 '''
