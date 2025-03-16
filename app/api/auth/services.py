@@ -31,7 +31,11 @@ class UserService:
                 status_code=403
             )
 
-        new_user = User(**user_data.dict())
+        new_user = User(username=user_data.username,
+                        name=user_data.name,
+                        password=get_password_hash(user_data.password),
+                        role_id=user_data.role_id,
+                        section_id=user_data.section_id)
         self.db.add(new_user)
         await self.db.commit()
         await self.db.refresh(new_user)
@@ -69,6 +73,9 @@ class UserService:
             update_fields["password"] = user_data.password
         if user_data.role_id is not None:
             update_fields["role_id"] = user_data.role_id
+
+        if user_data.section_id is not None:
+            update_fields["section_id"] = user_data.section_id
 
         # Only proceed if there are fields to update
         if update_fields:

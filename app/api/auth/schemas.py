@@ -18,6 +18,8 @@ class UserUpdate(BaseModel):
     username : Optional[str] = None
     password: Optional[str] = None
     role_id : Optional[UUID] = None
+    section_id: Optional[UUID] = None
+
 
 class RoleforUser(BaseModel):
     name: str
@@ -28,6 +30,9 @@ class UserResponse(BaseModel):
     name: str
     username: str
     role : RoleforUser
+    section_id: Optional[UUID] = None
+
+
 
 class RoleCreate(BaseModel):
     name: str

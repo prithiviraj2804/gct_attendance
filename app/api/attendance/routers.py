@@ -21,14 +21,23 @@ router = APIRouter()
 
 @router.post("/upload_students/")
 async def upload_students(
-    data: UploadFileSchema,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),  # Get user from JWT token
 ):
-    # Pass batch_name, year_name, and section_name to the service
-    result = await AttendanceService(db).upload_file(data, file)
-    return result
+    print("User: ", user.role.name)
+    # Ensure the user is a faculty
+    if not user or user.role.name != "faculty" :
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
 
+    # Ensure the faculty is assigned to a section
+    if not user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+
+    # Automatically assign students to the user's section
+    result = await AttendanceService(db).upload_file(file, user.section_id)
+    
+    return result
 
 
 
