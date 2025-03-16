@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role_id: UUID
+    section_id: UUID
 
 
 class UserUpdate(BaseModel):

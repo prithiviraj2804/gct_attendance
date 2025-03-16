@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.api.attendance.models import Attendance, Batch, Section, Student, Year
-from app.api.attendance.schemas import UploadFileSchema
+from app.api.attendance.schemas import AttendanceCreate, BatchCreate, DepartmentCreate, SectionCreate, UploadFileSchema, YearCreate
 from app.api.attendance.services import AttendanceService
 from app.core.database import get_session
 from app.utils.security import get_current_user
@@ -30,25 +30,6 @@ async def upload_students(
     return result
 
 
-@router.get("/mark_attendance/{batch_name}/{year_name}/{section_name}")
-async def mark_attendance(batch_name: str, year_name: str, section_name: str, request: Request, db: AsyncSession = Depends(get_session)):
-    # Pass batch_name, year_name, and section_name to the service to get the students
-    result = await AttendanceService(db).get_students(batch_name, year_name, section_name, request)
-    return result
-
-
-@router.post("/submit_attendance/{batch_name}/{year_name}/{section_name}")
-async def submit_attendance(batch_name: str, year_name: str, section_name: str, attendance_data: List[dict], db: AsyncSession = Depends(get_session)):
-    # Pass batch_name, year_name, section_name, and attendance_data to the service for submission
-    result = await AttendanceService(db).submit_attendance(batch_name, year_name, section_name, attendance_data)
-    return result
-
-
-@router.get("/view_attendance/{batch_name}/{year_name}/{section_name}")
-async def view_attendance(batch_name: str, year_name: str, section_name: str, request: Request, db: AsyncSession = Depends(get_session)):
-    # Pass batch_name, year_name, and section_name to the service for viewing attendance
-    result = await AttendanceService(db).view_attendance(batch_name, year_name, section_name, request)
-    return result
 
 
 '''
@@ -58,100 +39,47 @@ Batch , Year, Section, Student, Attendance
 
 '''
 
-# POST route to create a new batch
+@router.post("/create_department/")
+async def create_department(
+    department_data: DepartmentCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create departments.")
 
+    return await AttendanceService(db).create_department(department_data)
 
-@router.post("/batch/")
-async def create_batch(name: str = Form(...),
-                       current_user=Depends(get_current_user),
-                       db: AsyncSession = Depends(get_session)):
-    
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="You are not authorized to perform this action")
+@router.post("/create_batch/")
+async def create_batch(
+    batch_data: BatchCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create batches.")
 
-    batch = Batch(name=name)
-    db.add(batch)
-    await db.commit()
-    return {"message": "Batch created successfully!", "batch": {"id": batch.id, "name": batch.name}}
+    return await AttendanceService(db).create_batch(batch_data)
 
-# GET route to get all batches
+@router.post("/create_year/")
+async def create_year(
+    year_data: YearCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create years.")
 
+    return await AttendanceService(db).create_year(year_data)
 
-@router.get("/batch/")
-async def get_batches(db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(Batch))
-    batches = result.scalars().all()
-    return {"batches": [{"id": batch.id, "name": batch.name} for batch in batches]}
+@router.post("/create_section/")
+async def create_section(
+    section_data: SectionCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create sections.")
 
-# POST route to create a new year under a specific batch
+    return await AttendanceService(db).create_section(section_data)
 
-
-@router.post("/year/{batch_id}/")
-async def create_year(batch_id: str, name: str = Form(...), db: AsyncSession = Depends(get_session)):
-    # Check if the batch exists
-    batch = await db.execute(select(Batch).filter(Batch.id == batch_id))
-    batch = batch.scalars().first()
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-
-    year = Year(name=name, batch_id=batch_id)
-    db.add(year)
-    await db.commit()
-    return {"message": "Year created successfully!", "year": {"id": year.id, "name": year.name}}
-
-# GET route to get all years for a specific batch
-
-
-@router.get("/year/{batch_id}/")
-async def get_years(batch_id: str, db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(Year).filter(Year.batch_id == batch_id))
-    years = result.scalars().all()
-    return {"years": [{"id": year.id, "name": year.name} for year in years]}
-
-# GET route to get all years
-
-
-@router.get("/year/")
-async def get_all_years(db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(Year))
-    years = result.scalars().all()
-    return {"years": [{"id": year.id, "batch_id": year.batch_id, "name": year.name} for year in years]}
-
-# POST route to create a new section under a specific year
-
-
-@router.post("/section/{year_id}/")
-async def create_section(year_id: str, name: str = Form(...), db: AsyncSession = Depends(get_session)):
-    # Check if the year exists
-    year = await db.execute(select(Year).filter(Year.id == year_id))
-    year = year.scalars().first()
-    if not year:
-        raise HTTPException(status_code=404, detail="Year not found")
-
-    section = Section(name=name, year_id=year_id)
-    db.add(section)
-    await db.commit()
-    return {"message": "Section created successfully!", "section": {"id": section.id, "name": section.name}}
-
-# GET route to get all sections for a specific year
-
-
-@router.get("/section/{year_id}/")
-async def get_sections(year_id: int, db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(Section).filter(Section.year_id == year_id))
-    sections = result.scalars().all()
-    return {"sections": [{"id": section.id, "name": section.name} for section in sections]}
-
-# GET route to get all sections
-
-
-@router.get("/section/")
-async def get_all_sections(db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(Section))
-    sections = result.scalars().all()
-    return {"sections": [{"id": section.id, "year_id": section.year_id, "name": section.name} for section in sections]}
-
-
-@router.get("/add_batch/")
-async def add_batch(request: Request):
-    return templates.TemplateResponse("add_batch.html", {"request": request})

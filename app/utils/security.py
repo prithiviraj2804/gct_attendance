@@ -58,7 +58,7 @@ async def get_current_user(
 ):
     try:
         payload = decode_token(credentials.credentials)
-        user_id: str = payload.get("user_id")
+        user_id: str = payload.get("id")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

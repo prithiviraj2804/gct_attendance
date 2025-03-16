@@ -5,13 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth.schemas import LoginSchema, RoleResponse, UserCreate, UserResponse, UserUpdate
 from app.api.auth.services import RoleService, UserService
 from app.core.database import get_session
+from app.utils.security import get_current_user
 
 
 router = APIRouter(tags=["Auth"], prefix="/auth")
 
 
 @router.get("/roles", response_model=List[RoleResponse])
-async def get_roles(db: AsyncSession = Depends(get_session)):
+async def get_roles(db: AsyncSession = Depends(get_session), current_user = Depends(get_current_user)):
+    if current_user.role.name != "admin":
+        return {"message": "You are not authorized to access this resource"}
     return await RoleService(db).get_roles()
 
 

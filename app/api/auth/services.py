@@ -1,5 +1,6 @@
 
 
+from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy import select
 
@@ -85,12 +86,10 @@ class UserService:
     async def login_user(self, user_data):
         result = await self.db.execute(select(User).where(User.username == user_data.username))
         user = result.scalars().first()
-
-        if not user or not verify_password(user_data.password,user.password):
+        if not verify_password(user_data.password, user.password):
             raise HTTPException(
-                detail={"message": "Invalid username or password"},
+                detail="Invalid username or password",
                 status_code=401
             )
-        
-        token = create_access_token(data={"user_id": user.id, "role": user.role.name})
-        return {"access_token": token, "token_type": "bearer"}
+        access_token = create_access_token({"id": str(user.id)}, expires_delta=timedelta(hours=1))
+        return {"access_token": access_token, "token_type": "bearer"}
