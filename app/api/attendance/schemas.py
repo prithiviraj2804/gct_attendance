@@ -13,6 +13,7 @@ class UploadFileSchema(BaseModel):
     class Config:
         from_attributes = True
 
+
 class AttendanceCreate(BaseModel):
     student_id: UUID
     date: Optional[datetime] = None  # Defaults to today if not provided
@@ -20,6 +21,7 @@ class AttendanceCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class DepartmentCreate(BaseModel):
     name: str
@@ -63,3 +65,10 @@ class StudentResponse(BaseModel):
     id: UUID
     name: str
     section_id: UUID
+
+
+class StudentUUIDs(BaseModel):
+    student_uuids: list[UUID]
+
+    class Config:
+        from_attributes = True

@@ -1,16 +1,18 @@
 import io
 from datetime import datetime
 from typing import List
+from uuid import UUID
 
 import pandas as pd
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, Request,
+from fastapi import (APIRouter, Depends, File, Form, HTTPException, 
                      UploadFile)
-from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.api.attendance.models import Attendance, Batch, Section, Student, Year
-from app.api.attendance.schemas import AttendanceCreate, BatchCreate, DepartmentCreate, SectionCreate, StudentCreate, StudentResponse, UploadFileSchema, YearCreate
+from app.api.attendance.schemas import ( BatchCreate,
+                                        DepartmentCreate, SectionCreate,
+                                        StudentCreate, StudentResponse, StudentUUIDs,
+                                         YearCreate)
 from app.api.attendance.services import AttendanceService
 from app.core.database import get_session
 from app.utils.security import get_current_user
@@ -104,7 +106,45 @@ async def delete_student(
     return await AttendanceService(db).delete_student(student_id)
 
 
+@router.post("/mark_attendance/")
+async def mark_attendance(
+    student_uuids: StudentUUIDs,  # List of student UUIDs to mark attendance for
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),  # Get the current logged-in user
+):
+    # Ensure the user has the correct role (faculty)
+    if not user or user.role.name != "faculty":
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can mark attendance.")
 
+    # Ensure the faculty is assigned to a section
+    if not user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+
+    # Call the service to mark attendance for the specified students
+    return await AttendanceService(db).mark_attendance(student_uuids, user.section_id)
+
+@router.get("/download_attendance/")
+async def download_attendance(
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    # Ensure the user has the correct role (faculty)
+    if not user or user.role.name != "faculty":
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can download attendance.")
+
+    # Ensure the faculty is assigned to a section
+    if not user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+
+    # Call the service to download attendance data
+    attendance_data = await AttendanceService(db).download_attendance(user.section_id)
+
+    # Convert the data to a CSV file
+    df = pd.DataFrame(attendance_data)
+    csv = df.to_csv(index=False)
+
+    # Return the CSV file as a downloadable file
+    return csv
 '''
 =======================================================
 Batch , Year, Section, Student, Attendance

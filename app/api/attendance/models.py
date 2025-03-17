@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from sqlalchemy import Column, DateTime, String, ForeignKey, UUID
+from sqlalchemy import Column, Date, DateTime, String, ForeignKey, UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.core.database import Base
 
@@ -63,7 +63,7 @@ class Attendance(Base):
     __tablename__ = 'attendance'
     
     student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('students.id'), nullable=False)
-    date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    date: Mapped[Date] = mapped_column(Date, default=datetime.utcnow().date, index=True)
     status: Mapped[str] = mapped_column(String, default="Absent")  # "Present" or "Absent"
 
     student = relationship("Student", back_populates="attendances")
