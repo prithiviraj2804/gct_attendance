@@ -89,6 +89,18 @@ class UserService:
             detail="No fields to update",
             status_code=400
         )
+    
+    async def delete_user(self, user_id):
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(
+                detail={"message": "User Not Found"},
+                status_code=404
+            )
+        await self.db.delete(user)
+        await self.db.commit()
+        return {"message": "User Deleted Successfully"}
 
     async def login_user(self, user_data):
         result = await self.db.execute(select(User).where(User.username == user_data.username))

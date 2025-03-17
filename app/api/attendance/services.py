@@ -60,7 +60,63 @@ class AttendanceService:
 
         return students
     
+    async def get_student(self, student_id):
+        """
+        Fetch
+        """
+        query = select(Student).where(Student.id == student_id)
+        result = await self.db.execute(query)
+        student = result.scalars().first()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found.")
+        return student
+    
+    async def create_student(self, student_data,section_id):
+        new_student = Student(name=student_data.name, section_id=section_id)
+        self.db.add(new_student)
+        await self.db.commit()
+        return new_student
 
+    async def update_student(self, student_data, student_id):
+        # Fetch the student from the database
+        query = await self.db.execute(select(Student).where(Student.id == student_id))
+        student = query.scalars().first()
+        if not student:
+            raise HTTPException(
+                detail="Student Not Found",
+                status_code=404
+            )
+
+        # Prepare a dictionary of fields to be updated
+        update_fields = {}
+
+        if student_data.name is not None:
+            update_fields["name"] = student_data.name
+
+        # Only proceed if there are fields to update
+        if update_fields:
+            await self.db.execute(
+                Student.__table__.update().where(Student.id == student_id).values(update_fields)
+            )
+            await self.db.commit()
+            return {"message": "Student record updated successfully"}
+
+        raise HTTPException(
+            detail="No fields to update",
+            status_code=400
+        )
+
+    async def delete_student(self, student_id):
+        result = await self.db.execute(select(Student).where(Student.id == student_id))
+        student = result.scalars().first()
+        if not student:
+            raise HTTPException(
+                detail="Student Not Found",
+                status_code=404
+            )
+        await self.db.delete(student)
+        await self.db.commit()
+        return {"message": "Student record deleted successfully"}
 
     # 🔹 Create Department (Only Admins)
 

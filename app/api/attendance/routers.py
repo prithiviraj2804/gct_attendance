@@ -5,12 +5,12 @@ from typing import List
 import pandas as pd
 from fastapi import (APIRouter, Depends, File, Form, HTTPException, Request,
                      UploadFile)
-from sqlalchemy import UUID
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.api.attendance.models import Attendance, Batch, Section, Student, Year
-from app.api.attendance.schemas import AttendanceCreate, BatchCreate, DepartmentCreate, SectionCreate, StudentResponse, UploadFileSchema, YearCreate
+from app.api.attendance.schemas import AttendanceCreate, BatchCreate, DepartmentCreate, SectionCreate, StudentCreate, StudentResponse, UploadFileSchema, YearCreate
 from app.api.attendance.services import AttendanceService
 from app.core.database import get_session
 from app.utils.security import get_current_user
@@ -46,6 +46,63 @@ async def fetch_students(
 ):
     students = await AttendanceService(db).get_students_by_section(user)
     return students
+
+@router.get("/students/{student_id}",response_model=StudentResponse)
+async def fetch_student(
+    student_id: UUID,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    student = await AttendanceService(db).get_student(student_id)
+    return student
+
+@router.post("/students/")
+async def create_student(
+    student_data: StudentCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    
+    if not user or user.role.name != "faculty" :
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+
+    # Ensure the faculty is assigned to a section
+    if not user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+
+    return await AttendanceService(db).create_student(student_data, user.section_id)
+
+@router.put("/students/{student_id}")
+async def update_student(
+    student_id: UUID,
+    student_data: StudentCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "faculty" :
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+
+    # Ensure the faculty is assigned to a section
+    if not user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+
+    return await AttendanceService(db).update_student(student_data, student_id) 
+
+@router.delete("/students/{student_id}")
+async def delete_student(
+    student_id: UUID,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "faculty" :
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+
+    # Ensure the faculty is assigned to a section
+    if not user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+
+    return await AttendanceService(db).delete_student(student_id)
+
 
 
 '''

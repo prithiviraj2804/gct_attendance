@@ -37,6 +37,10 @@ async def get_user_by_id(user_id: str, db: AsyncSession = Depends(get_session)):
 async def update_user(user_id: str, user_data: UserUpdate, db: AsyncSession = Depends(get_session)):
     return await UserService(db).update_user(user_id, user_data)
 
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, db: AsyncSession = Depends(get_session)):
+    return await UserService(db).delete_user(user_id)
+
 
 @router.post("/login")
 async def login(user_data: LoginSchema, db: AsyncSession = Depends(get_session)):

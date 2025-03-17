@@ -54,7 +54,6 @@ class SectionCreate(BaseModel):
 
 class StudentCreate(BaseModel):
     name: str
-    section_id: UUID
 
     class Config:
         from_attributes = True
