@@ -10,7 +10,7 @@ from app.api.attendance.schemas import StudentUUIDs
 from app.api.auth.models import User
 from main import templates
 
-from app.api.attendance.models import Attendance, Department, Student, Section, Year, Batch
+from app.api.attendance.models import Attendance, Department, Student, Section, Timetable, Year, Batch
 
 
 class AttendanceService:
@@ -120,73 +120,67 @@ class AttendanceService:
         await self.db.commit()
         return {"message": "Student record deleted successfully"}
     
-    async def mark_attendance(self, student_uuids, section_id):
+    # Use async session and async functions
+    async def mark_attendance_for_day(self, section_id , data):
         """
-        Mark attendance for a list of specified students (using their UUIDs).
-        Mark all other students in the section as absent.
-        Ensures attendance is marked only once per day for each student.
-        """
-        # 🔹 Ensure the faculty is assigned to a section
-        if not section_id:
-            raise HTTPException(status_code=403, detail="Access Denied: No section assigned.")
-        
-        # 🔹 Access the list of student UUIDs from the StudentUUIDs object
-        if isinstance(student_uuids, StudentUUIDs):
-            student_uuids = student_uuids.student_uuids  # Access the list attribute directly
+        Function to mark attendance for all students in a section for a particular day.
+        It marks attendance for each hour based on the timetable for the section.
 
-        # 🔹 Check if student_uuids are already UUID objects, if not, convert them
-        if isinstance(student_uuids[0], str):  # Check if the list contains strings
-            student_uuids = [UUID(uuid) for uuid in student_uuids]
+        Args:
+        - session (AsyncSession): The async database session.
+        - section_id (uuid.UUID): The ID of the section for which we need to mark attendance.
+        - data (dict): The data for marking attendance. Expects `day_of_week` and `date`.
+        """
+        # Fetch timetable for the given day of the week
+        hour = data["hour"]
+        if hour < 1 or hour > 7:
+            raise Exception("Invalid hour. It should be between 1 and 7.")
+
+        result = await self.db.execute(
+            select(Timetable).filter(
+                Timetable.section_id == section_id, 
+                Timetable.day_of_week == data["day_of_week"]
+            )
+        )
+        timetables_for_day = result.scalars().all()
+
+        # Ensure that timetables are found for the provided section and day
+        if not timetables_for_day:
+            raise Exception("No timetable found for the given section and day of the week.")
+
         
-        # 🔹 Fetch students in the faculty's section and filter by section_id
-        query = select(Student).where(Student.section_id == section_id)
-        result = await self.db.execute(query)
+        # Get all students in the section
+        result = await self.db.execute(
+            select(Student).filter(Student.section_id == section_id)
+        )
         students = result.scalars().all()
 
+        # Check if there are any students in the section
         if not students:
-            raise HTTPException(status_code=404, detail="No students found in the section.")
+            raise Exception(f"No students found for section {section_id}.")
 
-        # 🔹 Get today's date (in UTC) to check against existing attendance
-        today_date = datetime.utcnow().date()
-        print(today_date)
-
-        # 🔹 Check if attendance has already been marked for any student in the section today
-        attendance_check_query = select(Attendance).where(
-            Attendance.date == today_date,
-            Attendance.student_id.in_([student.id for student in students])
-        )
-        attendance_check_result = await self.db.execute(attendance_check_query)
-        existing_attendance_records = attendance_check_result.scalars().all()
-
-        if existing_attendance_records:
-            raise HTTPException(status_code=400, detail="Attendance has already been marked for today.")
-
-        # 🔹 Create attendance records
-        attendance_records = []
-        # Set of student UUIDs passed by the frontend
-        student_uuid_set = set(student_uuids)
 
         for student in students:
-            # 🔹 If student UUID is in the list, mark as present, else absent
-            status = "present" if student.id in student_uuid_set else "absent"
-            
-            # 🔹 Create a new attendance record
-            attendance = Attendance(
-                student_id=student.id,
-                date=datetime.utcnow(),  # Store the exact time of marking
-                status=status
-            )
-            self.db.add(attendance)
-            attendance_records.append(attendance)
+                    for timetable in timetables_for_day:
+                        # Check if there is a subject assigned for the specified hour
+                        subject = getattr(timetable, f'hour_{hour}_subject', None)
 
-        # 🔹 Commit attendance records only if they were added
-        if attendance_records:
-            await self.db.commit()
+                        if subject:
+                            # Mark attendance for the student for that hour
+                            attendance = Attendance(
+                                student_id=student.id,
+                                timetable_id=timetable.id,
+                                hour=hour,
+                                status="Present",  # Default status, can be modified if needed
+                                date=data["date"]
+                            )
+                            self.db.add(attendance)
 
-        # 🔹 Return a response indicating how many attendance records were added
-        return {"message": "Attendance marked successfully", "total": len(attendance_records)}
+                # Commit the transaction to save all attendance records
+        await self.db.commit()
 
-
+        return {"message": f"Attendance successfully marked for section {section_id} on {data['date']} for hour {hour}"}    
+    
     async def download_attendance(self, section_id):
         """
         Fetch attendance records for all students in the section.
@@ -215,6 +209,65 @@ class AttendanceService:
         attendance_records = attendance_result.scalars().all()
 
         return attendance_records
+    
+    async def create_timetable(self, timetable_data):
+        new_timetable = Timetable(
+            day_of_week=timetable_data.day_of_week,
+            hour_1_subject=timetable_data.hour_1_subject,
+            hour_2_subject=timetable_data.hour_2_subject,
+            hour_3_subject=timetable_data.hour_3_subject,
+            hour_4_subject=timetable_data.hour_4_subject,
+            hour_5_subject=timetable_data.hour_5_subject,
+            hour_6_subject=timetable_data.hour_6_subject,
+            hour_7_subject=timetable_data.hour_7_subject,
+            hour_8_subject=timetable_data.hour_8_subject,
+            section_id=timetable_data.section_id
+        )
+        self.db.add(new_timetable)
+        await self.db.commit()
+        return new_timetable
+
+    async def get_timetable(self, timetable_id):
+        query = select(Timetable).where(Timetable.id == timetable_id)
+        result = await self.db.execute(query)
+        timetable = result.scalars().first()
+        if not timetable:
+            raise HTTPException(status_code=404, detail="Timetable not found.")
+        return timetable
+
+    async def update_timetable(self, timetable_data, timetable_id):
+        query = await self.db.execute(select(Timetable).where(Timetable.id == timetable_id))
+        timetable = query.scalars().first()
+        if not timetable:
+            raise HTTPException(status_code=404, detail="Timetable not found.")
+
+        update_fields = {
+            "day_of_week": timetable_data.day_of_week,
+            "hour_1_subject": timetable_data.hour_1_subject,
+            "hour_2_subject": timetable_data.hour_2_subject,
+            "hour_3_subject": timetable_data.hour_3_subject,
+            "hour_4_subject": timetable_data.hour_4_subject,
+            "hour_5_subject": timetable_data.hour_5_subject,
+            "hour_6_subject": timetable_data.hour_6_subject,
+            "hour_7_subject": timetable_data.hour_7_subject,
+            "hour_8_subject": timetable_data.hour_8_subject,
+            "section_id": timetable_data.section_id
+        }
+
+        await self.db.execute(
+            Timetable.__table__.update().where(Timetable.id == timetable_id).values(update_fields)
+        )
+        await self.db.commit()
+        return {"message": "Timetable updated successfully"}
+
+    async def delete_timetable(self, timetable_id):
+        query = await self.db.execute(select(Timetable).where(Timetable.id == timetable_id))
+        timetable = query.scalars().first()
+        if not timetable:
+            raise HTTPException(status_code=404, detail="Timetable not found.")
+        await self.db.delete(timetable)
+        await self.db.commit()
+        return {"message": "Timetable deleted successfully"}
 
     async def create_department(self, department_data):
 

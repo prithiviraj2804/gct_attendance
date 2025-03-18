@@ -9,9 +9,9 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException,
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.api.attendance.schemas import ( BatchCreate,
+from app.api.attendance.schemas import ( AttendanceCreate, BatchCreate,
                                         DepartmentCreate, SectionCreate,
-                                        StudentCreate, StudentResponse, StudentUUIDs,
+                                        StudentCreate, StudentResponse, StudentUUIDs, TimetableCreate,
                                          YearCreate)
 from app.api.attendance.services import AttendanceService
 from app.core.database import get_session
@@ -21,7 +21,7 @@ from main import templates
 router = APIRouter()
 
 
-@router.post("/upload_students/")
+@router.post("/upload_students/",tags=["Students"])
 async def upload_students(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_session),
@@ -41,7 +41,7 @@ async def upload_students(
     
     return result
 
-@router.get("/students", response_model=List[StudentResponse])
+@router.get("/students", response_model=List[StudentResponse],tags=["Students"])
 async def fetch_students(
     db: AsyncSession = Depends(get_session),
     user = Depends(get_current_user),
@@ -49,7 +49,7 @@ async def fetch_students(
     students = await AttendanceService(db).get_students_by_section(user)
     return students
 
-@router.get("/students/{student_id}",response_model=StudentResponse)
+@router.get("/students/{student_id}",response_model=StudentResponse,tags=["Students"])
 async def fetch_student(
     student_id: UUID,
     db: AsyncSession = Depends(get_session),
@@ -58,7 +58,7 @@ async def fetch_student(
     student = await AttendanceService(db).get_student(student_id)
     return student
 
-@router.post("/students/")
+@router.post("/students/",tags=["Students"])
 async def create_student(
     student_data: StudentCreate,
     db: AsyncSession = Depends(get_session),
@@ -74,7 +74,7 @@ async def create_student(
 
     return await AttendanceService(db).create_student(student_data, user.section_id)
 
-@router.put("/students/{student_id}")
+@router.put("/students/{student_id}",tags=["Students"])
 async def update_student(
     student_id: UUID,
     student_data: StudentCreate,
@@ -90,7 +90,7 @@ async def update_student(
 
     return await AttendanceService(db).update_student(student_data, student_id) 
 
-@router.delete("/students/{student_id}")
+@router.delete("/students/{student_id}",tags=["Students"])
 async def delete_student(
     student_id: UUID,
     db: AsyncSession = Depends(get_session),
@@ -105,10 +105,53 @@ async def delete_student(
 
     return await AttendanceService(db).delete_student(student_id)
 
+@router.post("/timetable/", tags=["Timetable"])
+async def create_timetable(
+    timetable_data: TimetableCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create timetables.")
+    
+    return await AttendanceService(db).create_timetable(timetable_data)
+
+@router.get("/timetable/{timetable_id}", tags=["Timetable"])
+async def get_timetable(
+    timetable_id: UUID,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    timetable = await AttendanceService(db).get_timetable(timetable_id)
+    return timetable
+
+@router.put("/timetable/{timetable_id}", tags=["Timetable"])
+async def update_timetable(
+    timetable_id: UUID,
+    timetable_data: TimetableCreate,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can update timetables.")
+    
+    return await AttendanceService(db).update_timetable(timetable_data, timetable_id)
+
+@router.delete("/timetable/{timetable_id}", tags=["Timetable"])
+async def delete_timetable(
+    timetable_id: UUID,
+    db: AsyncSession = Depends(get_session),
+    user = Depends(get_current_user),
+):
+    if not user or user.role.name != "admin":
+        raise HTTPException(status_code=403, detail="Access Denied: Only admins can delete timetables.")
+    
+    return await AttendanceService(db).delete_timetable(timetable_id)
+
 
 @router.post("/mark_attendance/")
 async def mark_attendance(
-    student_uuids: StudentUUIDs,  # List of student UUIDs to mark attendance for
+    data: AttendanceCreate,  # List of student UUIDs to mark attendance for
     db: AsyncSession = Depends(get_session),
     user = Depends(get_current_user),  # Get the current logged-in user
 ):
@@ -121,7 +164,7 @@ async def mark_attendance(
         raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
 
     # Call the service to mark attendance for the specified students
-    return await AttendanceService(db).mark_attendance(student_uuids, user.section_id)
+    return await AttendanceService(db).mark_attendance_for_day(user.section_id,data)
 
 @router.get("/download_attendance/")
 async def download_attendance(
@@ -152,7 +195,7 @@ Batch , Year, Section, Student, Attendance
 
 '''
 
-@router.post("/create_department/")
+@router.post("/create_department/",tags=["Admin"])
 async def create_department(
     department_data: DepartmentCreate,
     db: AsyncSession = Depends(get_session),
@@ -163,7 +206,7 @@ async def create_department(
 
     return await AttendanceService(db).create_department(department_data)
 
-@router.post("/create_batch/")
+@router.post("/create_batch/",tags=["Admin"])
 async def create_batch(
     batch_data: BatchCreate,
     db: AsyncSession = Depends(get_session),
@@ -174,7 +217,7 @@ async def create_batch(
 
     return await AttendanceService(db).create_batch(batch_data)
 
-@router.post("/create_year/")
+@router.post("/create_year/",tags=["Admin"])
 async def create_year(
     year_data: YearCreate,
     db: AsyncSession = Depends(get_session),
@@ -185,7 +228,7 @@ async def create_year(
 
     return await AttendanceService(db).create_year(year_data)
 
-@router.post("/create_section/")
+@router.post("/create_section/",tags=["Admin"])
 async def create_section(
     section_data: SectionCreate,
     db: AsyncSession = Depends(get_session),

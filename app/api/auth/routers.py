@@ -19,7 +19,9 @@ async def get_roles(db: AsyncSession = Depends(get_session), current_user = Depe
 
 
 @router.post("/users")
-async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_session)):
+async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_session),current_user = Depends(get_current_user)):
+    if current_user.role.name != "admin":
+        return {"message": "You are not authorized to access this resource"} 
     return await UserService(db).create_user(user_data)
 
 

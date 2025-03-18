@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from sqlalchemy import Column, Date, DateTime, String, ForeignKey, UUID
+from sqlalchemy import Column, Date, DateTime, Integer, String, ForeignKey, UUID, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.core.database import Base
 
@@ -46,6 +46,8 @@ class Section(Base):
     year = relationship("Year", back_populates="sections")
     students = relationship("Student", back_populates="section")
 
+    timetable = relationship("Timetable", back_populates="section")
+
 
 # Student Model
 class Student(Base):
@@ -57,13 +59,39 @@ class Student(Base):
     section = relationship("Section", back_populates="students")
     attendances = relationship("Attendance", back_populates="student")
 
+# Timetable Model (for each day of the week)
+class Timetable(Base):
+    __tablename__ = 'timetables'
+    
+    day_of_week: Mapped[str] = mapped_column(String, nullable=False)  # 'Monday', 'Tuesday', etc.
+    hour_1_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_2_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_3_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_4_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_5_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_6_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_7_subject: Mapped[str] = mapped_column(String, nullable=False)
+    hour_8_subject: Mapped[str] = mapped_column(String, nullable=True)
 
-# Attendance Model
+    section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False)
+
+    section = relationship("Section", back_populates="timetable")
+    attendances = relationship("Attendance", back_populates="timetable")
+
+
+# Attendance Model (Hourly Attendance)
 class Attendance(Base):
     __tablename__ = 'attendance'
     
     student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('students.id'), nullable=False)
-    date: Mapped[Date] = mapped_column(Date, default=datetime.utcnow().date, index=True)
+    timetable_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('timetables.id'), nullable=False)  # Reference to the timetable for that day
+    hour: Mapped[int] = mapped_column(Integer, nullable=False)  # Represents the hour of the day (1 to 7)
     status: Mapped[str] = mapped_column(String, default="Absent")  # "Present" or "Absent"
+    date: Mapped[str] = mapped_column(String, nullable=False)  # Date in 'YYYY-MM-DD' format for reference
 
     student = relationship("Student", back_populates="attendances")
+    timetable = relationship("Timetable", back_populates="attendances")
+
+    __table_args__ = (
+        UniqueConstraint('student_id', 'date', 'hour', name='unique_student_hour'),
+    )

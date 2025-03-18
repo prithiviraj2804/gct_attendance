@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from fastapi import File, UploadFile
+from numpy import datetime64
 from pydantic import BaseModel
 
 
@@ -13,14 +14,6 @@ class UploadFileSchema(BaseModel):
     class Config:
         from_attributes = True
 
-
-class AttendanceCreate(BaseModel):
-    student_id: UUID
-    date: Optional[datetime] = None  # Defaults to today if not provided
-    status: str = "Absent"  # "Present" or "Absent"
-
-    class Config:
-        from_attributes = True
 
 
 class DepartmentCreate(BaseModel):
@@ -72,3 +65,36 @@ class StudentUUIDs(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TimetableCreate(BaseModel):
+    section_id: UUID
+    day_of_week: str  # e.g., "Monday", "Tuesday", etc.
+    hour_1_subject: str
+    hour_2_subject: str
+    hour_3_subject: str
+    hour_4_subject: str
+    hour_5_subject: str
+    hour_6_subject: str
+    hour_7_subject: str
+    hour_8_subject: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class TimetableResponse(BaseModel):
+    id: UUID
+    section_id: UUID
+    day_of_week: str
+    hour_1_subject: str
+    hour_2_subject: str
+    hour_3_subject: str
+    hour_4_subject: str
+    hour_5_subject: str
+    hour_6_subject: str
+    hour_7_subject: str
+    hour_8_subject: Optional[str] = None
+
+class AttendanceCreate(BaseModel):
+    day_of_week: str
+    date: datetime
+    hour : str
