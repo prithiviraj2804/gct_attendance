@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from fastapi import File, UploadFile
 from numpy import datetime64
@@ -98,3 +98,4 @@ class AttendanceCreate(BaseModel):
     day_of_week: str
     date: datetime
     hour : str
+    attendance_data: List[UUID] 
