@@ -66,36 +66,36 @@ class StudentUUIDs(BaseModel):
     class Config:
         from_attributes = True
 
-class TimetableCreate(BaseModel):
-    section_id: UUID
-    day_of_week: str  # e.g., "Monday", "Tuesday", etc.
-    hour_1_subject: str
-    hour_2_subject: str
-    hour_3_subject: str
-    hour_4_subject: str
-    hour_5_subject: str
-    hour_6_subject: str
-    hour_7_subject: str
-    hour_8_subject: Optional[str] = None
+class TimetableSlotCreate(BaseModel):
+    day_of_week: int  # 1 to 6 (Mon-Sat)
+    hour: int  # 1 to 7
+    subject_name: str
+    subject_code: str
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+
+class TimetableCreate(BaseModel):
+    slots: List[TimetableSlotCreate]
+
+    class Config:
+        orm_mode = True
+
+class TimetableSlotResponse(BaseModel):
+    id: UUID
+    timetable_id: UUID
+    day_of_week: int
+    hour: int
+    subject_name: str
+    subject_code: str
+
+    class Config:
+        orm_mode = True
 
 class TimetableResponse(BaseModel):
     id: UUID
-    section_id: UUID
-    day_of_week: str
-    hour_1_subject: str
-    hour_2_subject: str
-    hour_3_subject: str
-    hour_4_subject: str
-    hour_5_subject: str
-    hour_6_subject: str
-    hour_7_subject: str
-    hour_8_subject: Optional[str] = None
+    slots: List[TimetableSlotResponse]
 
-class AttendanceCreate(BaseModel):
-    day_of_week: str
-    date: datetime
-    hour : str
-    attendance_data: List[UUID] 
+    class Config:
+        orm_mode = True

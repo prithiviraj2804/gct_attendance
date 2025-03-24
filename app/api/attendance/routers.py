@@ -4,21 +4,27 @@ from typing import List
 from uuid import UUID
 
 import pandas as pd
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, 
-                     UploadFile)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.api.attendance.schemas import ( AttendanceCreate, BatchCreate,
-                                        DepartmentCreate, SectionCreate,
-                                        StudentCreate, StudentResponse, StudentUUIDs, TimetableCreate,
-                                         YearCreate)
+from app.api.attendance.schemas import (BatchCreate, DepartmentCreate,
+                                        SectionCreate, StudentCreate,
+                                        StudentResponse, TimetableCreate, TimetableResponse,
+                                        YearCreate)
 from app.api.attendance.services import AttendanceService
 from app.core.database import get_session
 from app.utils.security import get_current_user
 from main import templates
 
 router = APIRouter()
+
+'''
+===========================================================
+# Students CRUD 
+=============================================================
+
+'''
 
 
 @router.post("/upload_students/",tags=["Students"])
@@ -105,95 +111,54 @@ async def delete_student(
 
     return await AttendanceService(db).delete_student(student_id)
 
-@router.post("/timetable/", tags=["Timetable"])
-async def create_timetable(
-    timetable_data: TimetableCreate,
-    db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
-):
-    if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create timetables.")
-    
-    return await AttendanceService(db).create_timetable(timetable_data)
 
-@router.get("/timetable/{timetable_id}", tags=["Timetable"])
-async def get_timetable(
-    timetable_id: UUID,
-    db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+'''
+=======================================================
+# Timetable CRUD
+=======================================================
+'''
+
+@router.post("/timetable/{section_id}", tags=["Timetable"])
+async def assign_timetable_to_section(
+    section_id: UUID,
+    timetable_data: TimetableCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
 ):
-    timetable = await AttendanceService(db).get_timetable(timetable_id)
+    if not current_user or current_user.role.name != "faculty":
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+    
+    # Ensure the faculty is assigned to a section
+    if not current_user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+    
+    return await AttendanceService(db).assign_timetable(section_id, timetable_data.slots)
+
+@router.get("/timetable/{section_id}", tags=["Timetable"])
+async def get_timetable_for_section(
+    section_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
+):
+    if not current_user or current_user.role.name != "faculty":
+        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+    
+    # Ensure the faculty is assigned to a section
+    if not current_user.section_id:
+        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+    
+    timetable = await AttendanceService(db).get_timetable(section_id)
     return timetable
 
-@router.put("/timetable/{timetable_id}", tags=["Timetable"])
-async def update_timetable(
-    timetable_id: UUID,
-    timetable_data: TimetableCreate,
-    db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
-):
-    if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can update timetables.")
-    
-    return await AttendanceService(db).update_timetable(timetable_data, timetable_id)
-
-@router.delete("/timetable/{timetable_id}", tags=["Timetable"])
-async def delete_timetable(
-    timetable_id: UUID,
-    db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
-):
-    if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can delete timetables.")
-    
-    return await AttendanceService(db).delete_timetable(timetable_id)
 
 
-@router.post("/mark_attendance/")
-async def mark_attendance(
-    data: AttendanceCreate,  # List of student UUIDs to mark attendance for
-    db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),  # Get the current logged-in user
-):
-    # Ensure the user has the correct role (faculty)
-    if not user or user.role.name != "faculty":
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can mark attendance.")
-
-    # Ensure the faculty is assigned to a section
-    if not user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
-
-    # Call the service to mark attendance for the specified students
-    return await AttendanceService(db).mark_attendance_for_day(user.section_id,data)
-
-@router.get("/download_attendance/")
-async def download_attendance(
-    db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
-):
-    # Ensure the user has the correct role (faculty)
-    if not user or user.role.name != "faculty":
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can download attendance.")
-
-    # Ensure the faculty is assigned to a section
-    if not user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
-
-    # Call the service to download attendance data
-    attendance_data = await AttendanceService(db).download_attendance(user.section_id)
-
-    # Convert the data to a CSV file
-    df = pd.DataFrame(attendance_data)
-    csv = df.to_csv(index=False)
-
-    # Return the CSV file as a downloadable file
-    return csv
 '''
 =======================================================
 Batch , Year, Section, Student, Attendance
 =======================================================
 
 '''
+
 
 @router.post("/create_department/",tags=["Admin"])
 async def create_department(
