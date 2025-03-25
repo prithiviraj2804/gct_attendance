@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from typing import List, Optional
 from uuid import UUID
 from fastapi import File, UploadFile
@@ -13,7 +13,6 @@ class UploadFileSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 
 class DepartmentCreate(BaseModel):
@@ -66,6 +65,7 @@ class StudentUUIDs(BaseModel):
     class Config:
         from_attributes = True
 
+
 class TimetableSlotCreate(BaseModel):
     day_of_week: int  # 1 to 6 (Mon-Sat)
     hour: int  # 1 to 7
@@ -82,6 +82,7 @@ class TimetableCreate(BaseModel):
     class Config:
         orm_mode = True
 
+
 class TimetableSlotResponse(BaseModel):
     id: UUID
     timetable_id: UUID
@@ -93,9 +94,21 @@ class TimetableSlotResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
 class TimetableResponse(BaseModel):
     id: UUID
     slots: List[TimetableSlotResponse]
 
     class Config:
         orm_mode = True
+
+
+class AttendanceCreate(BaseModel):
+    student_id: UUID
+    timetable_slot_id: UUID
+    is_present: bool
+
+
+class AttendanceBatchCreate(BaseModel):
+    date: date
+    attendances: List[AttendanceCreate]

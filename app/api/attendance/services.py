@@ -123,6 +123,51 @@ class AttendanceService:
     
 
     '''
+    ====================================================
+    # Mark Attendance CRUD Services
+    ====================================================
+    '''
+    async def mark_attendance(self, section_id, attendance_data):
+        # Validate section and date
+        query = select(Section).where(Section.id == section_id)
+        result = await self.db.execute(query)
+        section = result.scalars().first()
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+
+        # Validate all students in the section
+        query = select(Student).where(Student.section_id == section_id)
+        result = await self.db.execute(query)
+        students_in_section = result.scalars().all()
+        if len(students_in_section) != len(attendance_data.attendances):
+            raise HTTPException(status_code=400, detail="Number of students and attendance data do not match")
+
+        # Validate timetable slot
+        for attendance in attendance_data.attendances:
+            query = select(TimetableSlot).where(TimetableSlot.id == attendance.timetable_slot_id)
+            result = await self.db.execute(query)
+            timetable_slot = result.scalars().first()
+            if not timetable_slot:
+                raise HTTPException(status_code=404, detail="Timetable slot not found")
+
+        # Mark attendance for each student
+        attendance_entries = []
+        for attendance in attendance_data.attendances:
+            new_attendance = Attendance(
+                student_id=attendance.student_id,
+                timetable_slot_id=attendance.timetable_slot_id,
+                date=attendance_data.date,
+                is_present=attendance.is_present
+            )
+            self.db.add(new_attendance)
+            attendance_entries.append(new_attendance)
+
+        await self.db.commit()
+        return attendance_entries
+
+
+
+    '''
     Initial Creation of Batch, Year, Section
     '''
 

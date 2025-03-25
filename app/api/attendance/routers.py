@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.api.attendance.schemas import (BatchCreate, DepartmentCreate,
+from app.api.attendance.schemas import (AttendanceBatchCreate, AttendanceCreate, BatchCreate, DepartmentCreate,
                                         SectionCreate, StudentCreate,
                                         StudentResponse, TimetableCreate, TimetableResponse,
                                         YearCreate)
@@ -27,87 +27,100 @@ router = APIRouter()
 '''
 
 
-@router.post("/upload_students/",tags=["Students"])
+@router.post("/upload_students/", tags=["Students"])
 async def upload_students(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),  # Get user from JWT token
+    user=Depends(get_current_user),  # Get user from JWT token
 ):
     print("User: ", user.role.name)
     # Ensure the user is a faculty
-    if not user or user.role.name != "faculty" :
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+    if not user or user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can upload student data.")
 
     # Ensure the faculty is assigned to a section
     if not user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
 
     # Automatically assign students to the user's section
     result = await AttendanceService(db).upload_file(file, user.section_id)
-    
+
     return result
 
-@router.get("/students", response_model=List[StudentResponse],tags=["Students"])
+
+@router.get("/students", response_model=List[StudentResponse], tags=["Students"])
 async def fetch_students(
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     students = await AttendanceService(db).get_students_by_section(user)
     return students
 
-@router.get("/students/{student_id}",response_model=StudentResponse,tags=["Students"])
+
+@router.get("/students/{student_id}", response_model=StudentResponse, tags=["Students"])
 async def fetch_student(
     student_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     student = await AttendanceService(db).get_student(student_id)
     return student
 
-@router.post("/students/",tags=["Students"])
+
+@router.post("/students/", tags=["Students"])
 async def create_student(
     student_data: StudentCreate,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
-    
-    if not user or user.role.name != "faculty" :
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+
+    if not user or user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can upload student data.")
 
     # Ensure the faculty is assigned to a section
     if not user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
 
     return await AttendanceService(db).create_student(student_data, user.section_id)
 
-@router.put("/students/{student_id}",tags=["Students"])
+
+@router.put("/students/{student_id}", tags=["Students"])
 async def update_student(
     student_id: UUID,
     student_data: StudentCreate,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "faculty" :
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+    if not user or user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can upload student data.")
 
     # Ensure the faculty is assigned to a section
     if not user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
 
-    return await AttendanceService(db).update_student(student_data, student_id) 
+    return await AttendanceService(db).update_student(student_data, student_id)
 
-@router.delete("/students/{student_id}",tags=["Students"])
+
+@router.delete("/students/{student_id}", tags=["Students"])
 async def delete_student(
     student_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "faculty" :
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
+    if not user or user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can upload student data.")
 
     # Ensure the faculty is assigned to a section
     if not user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
 
     return await AttendanceService(db).delete_student(student_id)
 
@@ -118,6 +131,7 @@ async def delete_student(
 =======================================================
 '''
 
+
 @router.post("/timetable/{section_id}", tags=["Timetable"])
 async def assign_timetable_to_section(
     section_id: UUID,
@@ -126,13 +140,16 @@ async def assign_timetable_to_section(
     db: AsyncSession = Depends(get_session)
 ):
     if not current_user or current_user.role.name != "faculty":
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can upload student data.")
-    
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can upload student data.")
+
     # Ensure the faculty is assigned to a section
     if not current_user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
-    
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
+
     return await AttendanceService(db).assign_timetable(section_id, timetable_data.slots)
+
 
 @router.get("/timetable/{section_id}", tags=["Timetable"])
 async def get_timetable_for_section(
@@ -141,15 +158,41 @@ async def get_timetable_for_section(
     db: AsyncSession = Depends(get_session)
 ):
     if not current_user or current_user.role.name != "faculty":
-        raise HTTPException(status_code=403, detail="Access Denied: Only faculty can view the timetable.")
-    
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+
     # Ensure the faculty is assigned to a section
     if not current_user.section_id:
-        raise HTTPException(status_code=400, detail="Error: You are not assigned to any section.")
-    
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
+
     timetable = await AttendanceService(db).get_timetable(section_id)
     return timetable
 
+
+'''
+=======================================================
+# Attendance Marking CRUD
+=======================================================
+'''
+
+
+@router.post("/mark_attendacne/{section_id}")
+async def mark_attendance(section_id: str,
+                          attendance_data: AttendanceBatchCreate,
+                          current_user: dict = Depends(get_current_user),
+                          db: AsyncSession = Depends(get_session)):
+
+    if not current_user or current_user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+
+    # Ensure the faculty is assigned to a section
+    if not current_user.section_id:
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
+
+    attendance = await AttendanceService(db).mark_attendance(section_id,attendance_data)
 
 
 '''
@@ -160,47 +203,53 @@ Batch , Year, Section, Student, Attendance
 '''
 
 
-@router.post("/create_department/",tags=["Admin"])
+@router.post("/create_department/", tags=["Admin"])
 async def create_department(
     department_data: DepartmentCreate,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create departments.")
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only admins can create departments.")
 
     return await AttendanceService(db).create_department(department_data)
 
-@router.post("/create_batch/",tags=["Admin"])
+
+@router.post("/create_batch/", tags=["Admin"])
 async def create_batch(
     batch_data: BatchCreate,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create batches.")
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only admins can create batches.")
 
     return await AttendanceService(db).create_batch(batch_data)
 
-@router.post("/create_year/",tags=["Admin"])
+
+@router.post("/create_year/", tags=["Admin"])
 async def create_year(
     year_data: YearCreate,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create years.")
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only admins can create years.")
 
     return await AttendanceService(db).create_year(year_data)
 
-@router.post("/create_section/",tags=["Admin"])
+
+@router.post("/create_section/", tags=["Admin"])
 async def create_section(
     section_data: SectionCreate,
     db: AsyncSession = Depends(get_session),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     if not user or user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="Access Denied: Only admins can create sections.")
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only admins can create sections.")
 
     return await AttendanceService(db).create_section(section_data)
-
