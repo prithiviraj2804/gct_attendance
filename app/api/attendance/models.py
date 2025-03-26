@@ -88,11 +88,16 @@ class TimetableSlot(Base):
 class Attendance(Base):
     __tablename__ = 'attendances'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('students.id'), nullable=False)
     date: Mapped[datetime.date] = mapped_column(Date, nullable=False, index=True)
     timetable_slot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('timetable_slots.id'), nullable=False)
     is_present: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False)
 
     student = relationship("Student", back_populates="attendances")
     timetable_slot = relationship("TimetableSlot")  # Links to a specific subject period
+    section = relationship("Section")
+
+    __table_args__ = (
+        UniqueConstraint('student_id', 'date', 'timetable_slot_id', 'section_id', name='_unique_attendance'),
+    )
