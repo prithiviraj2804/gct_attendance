@@ -12,7 +12,7 @@ from app.api.attendance.schemas import StudentUUIDs
 from app.api.auth.models import User
 from main import templates
 
-from app.api.attendance.models import Attendance, Department, Student, Section, Timetable, TimetableSlot, Year, Batch
+from app.api.attendance.models import  Student, Section, Timetable, Year, Batch
 
 
 class AttendanceService:
@@ -145,7 +145,7 @@ class AttendanceService:
 
         # Validate timetable slot and check for existing attendance
         for attendance in attendance_data.attendances:
-            query = select(TimetableSlot).where(TimetableSlot.id == attendance.timetable_slot_id)
+            query = select(Timetable).where(Timetable.id == attendance.timetable_slot_id)
             result = await self.db.execute(query)
             timetable_slot = result.scalars().first()
             if not timetable_slot:
@@ -236,7 +236,7 @@ class AttendanceService:
         await self.db.refresh(timetable)
 
         for slot_data in timetable_data:
-            timetable_slot = TimetableSlot(
+            timetable_slot = Timetable(
                 timetable_id=timetable.id,
                 day_of_week=slot_data.day_of_week,
                 hour=slot_data.hour,
@@ -255,7 +255,7 @@ class AttendanceService:
         if not timetable:
             raise HTTPException(status_code=404, detail="Timetable not found.")
         
-        query = select(TimetableSlot).where(TimetableSlot.timetable_id == timetable.id)
+        query = select(Timetable).where(Timetable.timetable_id == timetable.id)
         result = await self.db.execute(query)
         slots = result.scalars().all()
         
