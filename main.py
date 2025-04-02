@@ -90,8 +90,10 @@ app.router.lifespan_context = lifespan
 
 from app.api.attendance.routers import router as attendance_router
 from app.api.auth.routers import router as auth_router
+from app.api.admin.routers import router as admin_router
 app.include_router(attendance_router)
 app.include_router(auth_router)
+app.include_router(admin_router)
 
 
 if __name__ == "__main__":

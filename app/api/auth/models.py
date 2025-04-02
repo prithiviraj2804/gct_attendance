@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import UUID, ForeignKey, String
+from sqlalchemy import UUID, Boolean, Column, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -36,6 +36,8 @@ class User(Base):
     password: Mapped[str] = mapped_column(String, nullable=False)
     role_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
+
     role = relationship("Role", back_populates="users", lazy='joined')
 
     # 🔹 Assign User to a Section (Only Faculty Users)
@@ -60,3 +62,16 @@ def insert_default_admin_user(target, connection, **kw):
         ))
         session.commit()
 
+
+class Faculty(Base):
+    __tablename__ = "faculty"
+
+    user_id = Column(UUID, ForeignKey("users.id"), unique=True, nullable=False)
+    department_id = Column(UUID, ForeignKey("departments.id"), nullable=False)
+    employee_id = Column(String, unique=True, nullable=False)
+    designation = Column(String, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="faculty_details")
+    department = relationship("Department", back_populates="faculty_members")
+    advised_sections = relationship("Section", back_populates="class_advisor")  # Relationship to Section

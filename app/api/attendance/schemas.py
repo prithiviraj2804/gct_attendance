@@ -112,3 +112,7 @@ class AttendanceCreate(BaseModel):
 class AttendanceBatchCreate(BaseModel):
     date: date
     attendances: List[AttendanceCreate]
+
+
+
+

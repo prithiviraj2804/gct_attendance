@@ -128,72 +128,72 @@ class AttendanceService:
     # Mark Attendance CRUD Services
     ====================================================
     '''
-    async def mark_attendance(self, section_id, attendance_data):
-        # Validate section and date
-        query = select(Section).where(Section.id == section_id)
-        result = await self.db.execute(query)
-        section = result.scalars().first()
-        if not section:
-            raise HTTPException(status_code=404, detail="Section not found")
+    # async def mark_attendance(self, section_id, attendance_data):
+    #     # Validate section and date
+    #     query = select(Section).where(Section.id == section_id)
+    #     result = await self.db.execute(query)
+    #     section = result.scalars().first()
+    #     if not section:
+    #         raise HTTPException(status_code=404, detail="Section not found")
 
-        # Validate all students in the section
-        query = select(Student).where(Student.section_id == section_id)
-        result = await self.db.execute(query)
-        students_in_section = result.scalars().all()
-        if len(students_in_section) != len(attendance_data.attendances):
-            raise HTTPException(status_code=400, detail="Number of students and attendance data do not match")
+    #     # Validate all students in the section
+    #     query = select(Student).where(Student.section_id == section_id)
+    #     result = await self.db.execute(query)
+    #     students_in_section = result.scalars().all()
+    #     if len(students_in_section) != len(attendance_data.attendances):
+    #         raise HTTPException(status_code=400, detail="Number of students and attendance data do not match")
 
-        # Validate timetable slot and check for existing attendance
-        for attendance in attendance_data.attendances:
-            query = select(Timetable).where(Timetable.id == attendance.timetable_slot_id)
-            result = await self.db.execute(query)
-            timetable_slot = result.scalars().first()
-            if not timetable_slot:
-                raise HTTPException(status_code=404, detail="Timetable slot not found")
+    #     # Validate timetable slot and check for existing attendance
+    #     for attendance in attendance_data.attendances:
+    #         query = select(Timetable).where(Timetable.id == attendance.timetable_slot_id)
+    #         result = await self.db.execute(query)
+    #         timetable_slot = result.scalars().first()
+    #         if not timetable_slot:
+    #             raise HTTPException(status_code=404, detail="Timetable slot not found")
 
-            # Check if attendance already exists for this student, section, hour, and date
-            query = select(Attendance).where(
-                Attendance.student_id == attendance.student_id,
-                Attendance.section_id == section_id,
-                Attendance.timetable_slot_id == attendance.timetable_slot_id,
-                Attendance.date == attendance_data.date
-            )
-            result = await self.db.execute(query)
-            existing_attendance = result.scalars().first()
-            if existing_attendance:
-                raise HTTPException(status_code=400, detail="Attendance already marked for this student for this section and hour")
+    #         # Check if attendance already exists for this student, section, hour, and date
+    #         query = select(Attendance).where(
+    #             Attendance.student_id == attendance.student_id,
+    #             Attendance.section_id == section_id,
+    #             Attendance.timetable_slot_id == attendance.timetable_slot_id,
+    #             Attendance.date == attendance_data.date
+    #         )
+    #         result = await self.db.execute(query)
+    #         existing_attendance = result.scalars().first()
+    #         if existing_attendance:
+    #             raise HTTPException(status_code=400, detail="Attendance already marked for this student for this section and hour")
 
-        # Mark attendance for each student
-        attendance_entries = []
-        for attendance in attendance_data.attendances:
-            new_attendance = Attendance(
-                section_id=section_id,
-                student_id=attendance.student_id,
-                timetable_slot_id=attendance.timetable_slot_id,
-                date=attendance_data.date,
-                is_present=attendance.is_present
-            )
-            self.db.add(new_attendance)
-            attendance_entries.append(new_attendance)
+    #     # Mark attendance for each student
+    #     attendance_entries = []
+    #     for attendance in attendance_data.attendances:
+    #         new_attendance = Attendance(
+    #             section_id=section_id,
+    #             student_id=attendance.student_id,
+    #             timetable_slot_id=attendance.timetable_slot_id,
+    #             date=attendance_data.date,
+    #             is_present=attendance.is_present
+    #         )
+    #         self.db.add(new_attendance)
+    #         attendance_entries.append(new_attendance)
 
-        await self.db.commit()
-        return attendance_entries
+    #     await self.db.commit()
+    #     return attendance_entries
     
-    async def get_section_attendance(self,section_id):
-        if not section_id:
-            raise HTTPException(status_code=404,
-                                detail="Section Not Found")
-        query = await self.db.execute(select(Attendance).where(Attendance.section_id == section_id).filter(Attendance.is_present == True))
-        result = query.scalars().all()
-        return result
+    # async def get_section_attendance(self,section_id):
+    #     if not section_id:
+    #         raise HTTPException(status_code=404,
+    #                             detail="Section Not Found")
+    #     query = await self.db.execute(select(Attendance).where(Attendance.section_id == section_id).filter(Attendance.is_present == True))
+    #     result = query.scalars().all()
+    #     return result
     
-    async def get_attendance_by_subject(self,timetable_slot_id):
-        if not timetable_slot_id:
-            raise HTTPException(status_code=404,
-                                detail="Subject Not Found")
-        query = await self.db.execute(select(Attendance).where(Attendance.timetable_slot_id == timetable_slot_id))
-        result = query.scalars().all()
-        return result
+    # async def get_attendance_by_subject(self,timetable_slot_id):
+    #     if not timetable_slot_id:
+    #         raise HTTPException(status_code=404,
+    #                             detail="Subject Not Found")
+    #     query = await self.db.execute(select(Attendance).where(Attendance.timetable_slot_id == timetable_slot_id))
+    #     result = query.scalars().all()
+    #     return result
 
 
     '''
