@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.api.attendance.schemas import (AttendanceBatchCreate, AttendanceCreate, BatchCreate, DepartmentCreate,
+from app.api.attendance.schemas import (AttendanceBatchCreate,  BatchCreate, DepartmentCreate,
                                         SectionCreate, StudentCreate,
                                         StudentResponse, TimetableCreate, TimetableResponse,
                                         YearCreate)
@@ -139,16 +139,19 @@ async def assign_timetable_to_section(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
+    # Check for faculty role
     if not current_user or current_user.role.name != "faculty":
         raise HTTPException(
-            status_code=403, detail="Access Denied: Only faculty can upload student data.")
+            status_code=403, detail="Access Denied: Only faculty can upload timetable data.")
 
     # Ensure the faculty is assigned to a section
     if not current_user.section_id:
         raise HTTPException(
             status_code=400, detail="Error: You are not assigned to any section.")
 
-    return await AttendanceService(db).assign_timetable(section_id, timetable_data.slots)
+    # Assign timetable to the section
+    result = await AttendanceService(db).assign_timetable(section_id, timetable_data.slots)
+    return {"message": "Timetable assigned successfully", "timetable": result}
 
 
 @router.get("/timetable/{section_id}", tags=["Timetable"])
@@ -178,21 +181,26 @@ async def get_timetable_for_section(
 
 
 @router.post("/mark_attendance")
-async def mark_attendance(attendance_data: AttendanceBatchCreate,
-                          current_user: dict = Depends(get_current_user),
-                          db: AsyncSession = Depends(get_session)):
-
+async def mark_attendance(
+    attendance_data: AttendanceBatchCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
+):
+    # Check for faculty role
     if not current_user or current_user.role.name != "faculty":
         raise HTTPException(
-            status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+            status_code=403, detail="Access Denied: Only faculty can mark attendance."
+        )
 
     # Ensure the faculty is assigned to a section
     if not current_user.section_id:
         raise HTTPException(
-            status_code=400, detail="Error: You are not assigned to any section.")
+            status_code=400, detail="Error: You are not assigned to any section."
+        )
 
-    attendance = await AttendanceService(db).mark_attendance(current_user.section_id,attendance_data)
-    return attendance
+    # Call the attendance service to mark attendance
+    attendance = await AttendanceService(db).mark_attendance(attendance_data)
+    return {"message": "Attendance marked successfully", "details": attendance}
 
 @router.get("/get_attendance")
 async def get_section_attendance(current_user = Depends(get_current_user),db : AsyncSession = Depends(get_session)):

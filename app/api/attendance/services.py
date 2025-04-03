@@ -128,57 +128,57 @@ class AttendanceService:
     # Mark Attendance CRUD Services
     ====================================================
     '''
-    async def mark_attendance(self, section_id, attendance_data):
-        # Validate section and date
+    async def mark_attendance(self, attendance_data):
+        section_id = attendance_data.section_id
+
+        # Validate the section
         query = select(Section).where(Section.id == section_id)
         result = await self.db.execute(query)
         section = result.scalars().first()
         if not section:
             raise HTTPException(status_code=404, detail="Section not found")
 
-        # Validate all students in the section
-        query = select(Student).where(Student.section_id == section_id)
-        result = await self.db.execute(query)
-        students_in_section = result.scalars().all()
-        if len(students_in_section) != len(attendance_data.attendances):
-            raise HTTPException(status_code=400, detail="Number of students and attendance data do not match")
+        for record in attendance_data.records:
+            day_of_week = record.day_of_week
+            hour = record.hour
+            students = record.students
 
-        # Validate timetable slot and check for existing attendance
-        for attendance in attendance_data.attendances:
-            query = select(TimetableSlot).where(TimetableSlot.id == attendance.timetable_slot_id)
-            result = await self.db.execute(query)
-            timetable_slot = result.scalars().first()
-            if not timetable_slot:
-                raise HTTPException(status_code=404, detail="Timetable slot not found")
-
-            # Check if attendance already exists for this student, section, hour, and date
+            # Check for existing attendance for the given section, date, day, and hour
             query = select(Attendance).where(
-                Attendance.student_id == attendance.student_id,
                 Attendance.section_id == section_id,
-                Attendance.timetable_slot_id == attendance.timetable_slot_id,
-                Attendance.date == attendance_data.date
+                Attendance.date == attendance_data.date,
+                Attendance.day_of_week == day_of_week,
+                Attendance.hour == hour
             )
             result = await self.db.execute(query)
             existing_attendance = result.scalars().first()
+
             if existing_attendance:
-                raise HTTPException(status_code=400, detail="Attendance already marked for this student for this section and hour")
+                # Update existing attendance record
+                existing_data = existing_attendance.attendance_data
 
-        # Mark attendance for each student
-        attendance_entries = []
-        for attendance in attendance_data.attendances:
-            new_attendance = Attendance(
-                section_id=section_id,
-                student_id=attendance.student_id,
-                timetable_slot_id=attendance.timetable_slot_id,
-                date=attendance_data.date,
-                is_present=attendance.is_present
-            )
-            self.db.add(new_attendance)
-            attendance_entries.append(new_attendance)
+                # Merge existing data with new data
+                for student_id, is_present in students.items():
+                    existing_data[str(student_id)] = is_present
+                
+                # Update the record in the database
+                existing_attendance.attendance_data = existing_data
+                await self.db.commit()
 
-        await self.db.commit()
-        return attendance_entries
-    
+            else:
+                # Create a new attendance record if not exists
+                new_attendance = Attendance(
+                    section_id=section_id,
+                    date=attendance_data.date,
+                    day_of_week=day_of_week,
+                    hour=hour,
+                    attendance_data=students
+                )
+                self.db.add(new_attendance)
+                await self.db.commit()
+
+        return {"message": "Attendance marked successfully"}
+
     async def get_section_attendance(self,section_id):
         if not section_id:
             raise HTTPException(status_code=404,
@@ -199,6 +199,12 @@ class AttendanceService:
     '''
     Initial Creation of Batch, Year, Section
     '''
+    async def create_department(self, department_data):
+
+        new_department = Department(name=department_data.name)
+        self.db.add(new_department)
+        await self.db.commit()
+        return new_department
 
 
     # 🔹 Create Batch (Only Admins)
@@ -229,25 +235,47 @@ class AttendanceService:
         return new_section
 
 
-    async def assign_timetable(self, section_id, timetable_data):
+    async def assign_timetable(self, section_id, slots):
+        # Create a new timetable for the section
         timetable = Timetable(section_id=section_id)
         self.db.add(timetable)
         await self.db.commit()
         await self.db.refresh(timetable)
 
-        for slot_data in timetable_data:
+        # Group timetable data by day
+        day_wise_schedule = {}
+        for slot in slots:
+            day = slot.day_of_week
+            schedule = slot.schedule  # Extract the entire schedule dictionary
+
+            # Initialize the day if not already present
+            if day not in day_wise_schedule:
+                day_wise_schedule[day] = {}
+
+            # Iterate over the schedule dictionary to get hours and subjects
+            for hour, subject_details in schedule.items():
+                subject_name = subject_details.get("subject_name")
+                subject_code = subject_details.get("subject_code")
+
+                # Add the slot to the day's schedule
+                day_wise_schedule[day][hour] = {
+                    "subject_name": subject_name,
+                    "subject_code": subject_code,
+                }
+
+        # Create timetable slots with compressed day-wise data
+        for day, schedule in day_wise_schedule.items():
             timetable_slot = TimetableSlot(
                 timetable_id=timetable.id,
-                day_of_week=slot_data.day_of_week,
-                hour=slot_data.hour,
-                subject_name=slot_data.subject_name,
-                subject_code=slot_data.subject_code
+                day_of_week=day,
+                schedule=schedule  # Store the entire day schedule as a JSON object
             )
             self.db.add(timetable_slot)
 
         await self.db.commit()
-        return timetable
-            
+        return timetable       
+
+
     async def get_timetable(self, section_id):
         query = select(Timetable).where(Timetable.section_id == section_id)
         result = await self.db.execute(query)

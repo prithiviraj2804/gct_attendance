@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 import uuid
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, ForeignKey, UUID, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Integer, String, ForeignKey, UUID, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.core.database import Base
 
@@ -48,6 +48,8 @@ class Section(Base):
     students = relationship("Student", back_populates="section")
 
     timetable = relationship("Timetable", back_populates="section")
+    attendances = relationship("Attendance", back_populates="section")
+
 
 
 # Student Model
@@ -58,7 +60,6 @@ class Student(Base):
     section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False)
 
     section = relationship("Section", back_populates="students")
-    attendances = relationship("Attendance", back_populates="student")
 
 
 # Subject Model
@@ -78,9 +79,7 @@ class TimetableSlot(Base):
 
     timetable_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('timetables.id'), nullable=False)
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 = Monday, 2 = Tuesday, etc.
-    hour: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 to 7, representing the 7 hours in a day
-    subject_name: Mapped[str] = mapped_column(String, nullable=False)
-    subject_code: Mapped[str] = mapped_column(String, nullable=False)
+    schedule: Mapped[dict] = mapped_column(JSON, nullable=False)  # Store the day's schedule as a JSON object
 
     timetable = relationship("Timetable", back_populates="timetable_slots")
 
@@ -88,16 +87,13 @@ class TimetableSlot(Base):
 class Attendance(Base):
     __tablename__ = 'attendances'
 
-    student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('students.id'), nullable=False)
-    date: Mapped[datetime.date] = mapped_column(Date, nullable=False, index=True)
-    timetable_slot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('timetable_slots.id'), nullable=False)
-    is_present: Mapped[bool] = mapped_column(Boolean, nullable=False)
     section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False, index=True)
+    day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 = Monday, 2 = Tuesday, etc.
+    hour: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 to 7 (or more if needed)
+    attendance_data: Mapped[dict] = mapped_column(JSON, nullable=False)  # {"student_id_1": true, "student_id_2": false}
 
-    student = relationship("Student", back_populates="attendances")
-    timetable_slot = relationship("TimetableSlot")  # Links to a specific subject period
-    section = relationship("Section")
-
+    section = relationship("Section", back_populates="attendances")
     __table_args__ = (
-        UniqueConstraint('student_id', 'date', 'timetable_slot_id', 'section_id', name='_unique_attendance'),
+        UniqueConstraint('section_id', 'date', 'day_of_week', 'hour', name='_unique_attendance'),
     )

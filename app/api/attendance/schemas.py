@@ -1,9 +1,9 @@
 from datetime import date
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 from fastapi import File, UploadFile
 from numpy import datetime64
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadFileSchema(BaseModel):
@@ -65,23 +65,20 @@ class StudentUUIDs(BaseModel):
     class Config:
         from_attributes = True
 
-
 class TimetableSlotCreate(BaseModel):
     day_of_week: int  # 1 to 6 (Mon-Sat)
-    hour: int  # 1 to 7
-    subject_name: str
-    subject_code: str
+    schedule: Dict[str, Dict[str, str]]  # {"1": {"subject_name": "Math", "subject_code": "MAT101"}, ...}
 
     class Config:
         orm_mode = True
 
 
 class TimetableCreate(BaseModel):
-    slots: List[TimetableSlotCreate]
+    section_id: UUID
+    slots: List[TimetableSlotCreate] = Field(..., description="List of timetable slots for each day")
 
     class Config:
         orm_mode = True
-
 
 class TimetableSlotResponse(BaseModel):
     id: UUID
@@ -103,12 +100,19 @@ class TimetableResponse(BaseModel):
         orm_mode = True
 
 
-class AttendanceCreate(BaseModel):
+# Individual student attendance within a batch
+class StudentAttendance(BaseModel):
     student_id: UUID
-    timetable_slot_id: UUID
     is_present: bool
 
+# Attendance record for a specific day and hour
+class AttendanceRecord(BaseModel):
+    day_of_week: int  # 1 = Monday, 2 = Tuesday, etc.
+    hour: int  # 1 to 7 (or more if needed)
+    students: Dict[str, bool]  # {"student_id_1": true, "student_id_2": false}
 
+# Batch attendance input
 class AttendanceBatchCreate(BaseModel):
     date: date
-    attendances: List[AttendanceCreate]
+    section_id: UUID
+    records: List[AttendanceRecord]
