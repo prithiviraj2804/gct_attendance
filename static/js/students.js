@@ -133,8 +133,9 @@ document.addEventListener("DOMContentLoaded", () => {
       tr.innerHTML = `
         <td>${student.section_name}</td>
         <td>${student.name}</td>
-        <td>${student.section_id || "N/A"}</td>
-        <td>${student.year}</td>
+        <td>${student.department_name}</td>
+        <td>${student.year_name}</td>
+        <td>${student.status}</td>
         <td>
           <button class="delete-btn" data-id="${student.id}"><i class="fas fa-trash"></i></button>
         </td>

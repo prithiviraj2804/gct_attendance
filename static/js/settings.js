@@ -4,63 +4,22 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!settingsPage) return;
 
   // DOM Elements
-  const saveSettingsBtn = document.getElementById("saveSettingsBtn");
-  const systemName = document.getElementById("systemName");
-  const academicYear = document.getElementById("academicYear");
-  const departmentList = document.getElementById("departmentList");
   const addDepartmentBtn = document.getElementById("addDepartmentBtn");
-  const currentUsername = document.getElementById("currentUsername");
-  const newPassword = document.getElementById("newPassword");
-  const confirmPassword = document.getElementById("confirmPassword");
-  const changePasswordBtn = document.getElementById("changePasswordBtn");
+  const departmentList = document.getElementById("departmentList");
 
   // Load settings data
-  loadSettings();
+  loadDepartments();
 
-  // Create and append the Add Department Modal to the body
+  // Create and append the Add Department Modal
   createAddDepartmentModal();
 
-  // Open the modal when clicking the "Add Department" button
+  // Event Listener for Adding Department
   addDepartmentBtn.addEventListener("click", () => {
     const addDepartmentModal = document.getElementById("addDepartmentModal");
     addDepartmentModal.style.display = "block";
   });
 
-  // Close the modal when clicking outside or on the close button
-  window.addEventListener("click", (event) => {
-    const addDepartmentModal = document.getElementById("addDepartmentModal");
-    if (event.target === addDepartmentModal) {
-      closeAddDepartmentModal();
-    }
-  });
-
-  // Load settings and departments
-  function loadSettings() {
-    const token = localStorage.getItem("authToken");
-
-    fetch("/api/settings", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          systemName.value = data.settings.systemName || "GCT Attendance System";
-          academicYear.value = data.settings.academicYear || "2023-2024";
-        } else {
-          alert("Failed to load settings: " + data.message);
-        }
-      })
-      .catch((error) => {
-        console.error("Error loading settings:", error);
-        alert("An error occurred while loading settings.");
-      });
-
-    loadDepartments();
-  }
-
-  // Load departments
+  // Load Departments
   function loadDepartments() {
     const token = localStorage.getItem("authToken");
 
@@ -153,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // Render department list
+  // Render Department List
   function renderDepartmentList(departments) {
     departmentList.innerHTML = "";
     departments.forEach((dept) => {
@@ -161,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Add department to UI
+  // Add Department to UI
   function addDepartmentToUI(dept) {
     const departmentItem = document.createElement("div");
     departmentItem.className = "department-item";
@@ -169,36 +128,65 @@ document.addEventListener("DOMContentLoaded", () => {
       <input type="text" value="${dept.name}" readonly>
       <button class="edit-btn"><i class="fas fa-edit"></i></button>
       <button class="delete-btn"><i class="fas fa-trash"></i></button>
+      <button class="batch-btn" data-id="${dept.id}"><i class="fas fa-layer-group"></i> Manage Batches</button>
     `;
 
-    const editBtn = departmentItem.querySelector(".edit-btn");
-    const deleteBtn = departmentItem.querySelector(".delete-btn");
-
-    editBtn.addEventListener("click", () => toggleEditDepartment(dept.id, departmentItem));
-    deleteBtn.addEventListener("click", () => deleteDepartment(dept.id));
+    const batchBtn = departmentItem.querySelector(".batch-btn");
+    batchBtn.addEventListener("click", () => manageBatches(dept.id, dept.name));
 
     departmentList.appendChild(departmentItem);
   }
 
-  // Toggle Edit Department
-  function toggleEditDepartment(deptId, departmentItem) {
-    const input = departmentItem.querySelector("input");
-    input.readOnly = !input.readOnly;
+  // Manage Batches (Display batch management modal)
+  function manageBatches(deptId, deptName) {
+    const batchModal = document.createElement("div");
+    batchModal.className = "modal";
+    batchModal.innerHTML = `
+      <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h2>Batches for ${deptName}</h2>
+        <input type="text" id="newBatchName" placeholder="Enter batch name">
+        <button id="addBatchBtn">Add Batch</button>
+        <div id="batchList"></div>
+      </div>
+    `;
+    document.body.appendChild(batchModal);
+
+    const addBatchBtn = batchModal.querySelector("#addBatchBtn");
+    addBatchBtn.addEventListener("click", () => {
+      const newBatchName = batchModal.querySelector("#newBatchName").value.trim();
+      if (newBatchName) {
+        addBatch(deptId, newBatchName);
+        batchModal.querySelector("#newBatchName").value = "";
+      } else {
+        alert("Batch name cannot be empty.");
+      }
+    });
+
+    // Close the modal
+    batchModal.querySelector(".close-btn").addEventListener("click", () => {
+      document.body.removeChild(batchModal);
+    });
   }
 
-  // Delete department
-  function deleteDepartment(deptId) {
+  // Add Batch to a Department
+  function addBatch(deptId, batchName) {
     const token = localStorage.getItem("authToken");
-    fetch(`/api/departments/${deptId}`, {
-      method: "DELETE",
+    fetch(`/api/departments/${deptId}/batches`, {
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
+      body: JSON.stringify({ name: batchName }),
     })
-      .then(() => loadDepartments())
+      .then((response) => response.json())
+      .then((data) => {
+        alert("Batch added successfully!");
+      })
       .catch((error) => {
-        alert("Failed to delete department.");
-        console.error("Error deleting department:", error);
+        console.error("Error adding batch:", error);
+        alert("An error occurred while adding the batch.");
       });
   }
 });

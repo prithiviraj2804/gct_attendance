@@ -58,26 +58,34 @@ class AttendanceService:
         if not user.section_id:
             raise HTTPException(status_code=403, detail="Access Denied: No section assigned.")
         
-        # 🔹 Fetch students in the faculty's section along with section name and year
+        # 🔹 Fetch students in the faculty's section along with section name, year, and department
         query = (
-            select(Student, Section.name.label("section_name"), Student.year)
+            select(
+                Student,
+                Section.name.label("section_name"),
+                Year.name.label("year_name"),
+                Department.name.label("department_name")
+            )
             .join(Section, Student.section_id == Section.id)
+            .join(Year, Section.year_id == Year.id)
+            .join(Batch, Year.batch_id == Batch.id)
+            .join(Department, Batch.department_id == Department.id)
             .where(Student.section_id == user.section_id)
         )
 
         result = await self.db.execute(query)
-        students = result.all()
 
-        # Format the response to include section name and year
+        # Format the response to include section name, year, and department
         formatted_students = [
             {
                 "id": student.id,
                 "name": student.name,
                 "section_id": student.section_id,
                 "section_name": section_name,
-                "year": student.year,
+                "year_name": year_name,
+                "department_name": department_name,
             }
-            for student, section_name, student.year in students
+            for student, section_name, year_name, department_name in result
         ]
 
         return formatted_students
