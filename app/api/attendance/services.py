@@ -1,18 +1,20 @@
-from datetime import datetime
-from email import message
 import io
 import time
+from datetime import datetime
+from email import message
 from typing import List
 from uuid import UUID
-from fastapi import HTTPException
+
 import pandas as pd
-from sqlalchemy.future import select
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from app.api.attendance.models import (Attendance, Batch, Department, Section,
+                                       Student, Timetable, TimetableSlot, Year)
 from app.api.attendance.schemas import StudentUUIDs
 from app.api.auth.models import User
 from main import templates
-
-from app.api.attendance.models import Attendance, Department, Student, Section, Timetable, TimetableSlot, Year, Batch
 
 
 class AttendanceService:
@@ -57,7 +59,7 @@ class AttendanceService:
             raise HTTPException(status_code=403, detail="Access Denied: No section assigned.")
             
             # 🔹 Fetch students in the faculty's section
-        query = select(Student).where(Student.section_id == user.section_id)
+        query = select(Student).where(Student.section_id == user.section_id).join(Sec)
 
         result = await self.db.execute(query)
         students = result.scalars().all()
@@ -205,6 +207,12 @@ class AttendanceService:
         self.db.add(new_department)
         await self.db.commit()
         return new_department
+    
+    async def get_departments(self):
+        query = select(Department)
+        result = await self.db.execute(query)
+        departments = result.scalars().all()
+        return departments
 
 
     # 🔹 Create Batch (Only Admins)

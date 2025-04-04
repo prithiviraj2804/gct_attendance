@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - GCT Attendance System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <h2>GCT</h2>
+                <p>Attendance System</p>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-page="overview">
+                    <i class="fas fa-home"></i>
+                    <span>Overview</span>
+                </li>
+                <li data-page="students">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Students</span>
+                </li>
+                <li data-page="attendance">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Attendance</span>
+                </li>
+                <li data-page="reports">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </li>
+                <li data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </li>
+                <li id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="content">
+            <header>
+                <div class="header-content">
+                    <button id="menuToggle" class="menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="user-info">
+                    <span id="currentUser">Admin</span>
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Overview Page -->
+            <section id="overview" class="page active">
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon students">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Students</h3>
+                            <p id="totalStudents">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon present">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Present Today</h3>
+                            <p id="presentToday">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon absent">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Absent Today</h3>
+                            <p id="absentToday">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon attendance-rate">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Attendance Rate</h3>
+                            <p id="attendanceRate">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h2>Recent Activity</h2>
+                    <div class="activity-list" id="recentActivityList">
+                        <p class="loading-text">Loading recent activities...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Students Page -->
+            <section id="students" class="page">
+                <div class="page-header">
+                    <h2>Student Management</h2>
+                    <button id="addStudentBtn" class="primary-btn">
+                        <i class="fas fa-plus"></i> Add Student
+                    </button>
+                </div>
+
+                <div class="search-filter">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="studentSearch" placeholder="Search students...">
+                    </div>
+                    <div class="filter-options">
+                        <select id="departmentFilter">
+                            <option value="">All Departments</option>
+                        </select>
+                        <select id="yearFilter">
+                            <option value="">All Years</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="studentsTable">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Year</th>
+                                <th>Attendance %</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody">
+                            <tr>
+                                <td colspan="6" class="loading-text">Loading students...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="studentsPagination">
+                    <button class="pagination-btn" id="prevPageBtn" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span id="currentPage">Page 1 of 1</span>
+                    <button class="pagination-btn" id="nextPageBtn" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Attendance Page -->
+            <section id="attendance" class="page">
+                <div class="page-header">
+                    <h2>Attendance Tracking</h2>
+                    <div class="header-actions">
+                        <button id="batchAttendanceBtn" class="secondary-btn">
+                            <i class="fas fa-users"></i> Batch Attendance
+                        </button>
+                        <button id="markAttendanceBtn" class="primary-btn">
+                            <i class="fas fa-clipboard-check"></i> Mark Attendance
+                        </button>
+                    </div>
+                </div>
+
+                <div class="date-selector">
+                    <label for="attendanceDate">Select Date:</label>
+                    <input type="date" id="attendanceDate">
+                    <button id="loadAttendanceBtn" class="primary-btn">Load</button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                            <tr>
+                                <td colspan="6" class="loading-text">Select a date to load attendance</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Reports Page -->
+            <section id="reports" class="page">
+                <div class="page-header">
+                    <h2>Attendance Reports</h2>
+                    <button id="exportReportBtn" class="primary-btn">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                </div>
+
+                <div class="report-filters">
+                    <div class="filter-group">
+                        <label for="reportType">Report Type:</label>
+                        <select id="reportType">
+                            <option value="daily">Daily Report</option>
+                            <option value="weekly">Weekly Report</option>
+                            <option value="monthly">Monthly Report</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" id="singleDateFilter">
+                        <label for="reportDate">Date:</label>
+                        <input type="date" id="reportDate">
+                    </div>
+                    
+                    <div class="filter-group hidden" id="dateRangeFilter">
+                        <label for="startDate">From:</label>
+                        <input type="date" id="startDate">
+                        <label for="endDate">To:</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="reportDepartment">Department:</label>
+                        <select id="reportDepartment">
+                            <option value="">All Departments</option>
+                        </select>
+                    </div>
+                    
+                    <button id="generateReportBtn" class="secondary-btn">Generate Report</button>
+                </div>
+
+                <div class="report-summary">
+                    <div class="summary-card">
+                        <h3>Total Students</h3>
+                        <p id="reportTotalStudents">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Present</h3>
+                        <p id="reportPresent">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Absent</h3>
+                        <p id="reportAbsent">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Attendance Rate</h3>
+                        <p id="reportAttendanceRate">-</p>
+                    </div>
+                </div>
+
+                <div class="report-chart-container">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="reportTable">
+                        <thead>
+                            <tr>
+                                <th>Roll No</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Present Days</th>
+                                <th>Absent Days</th>
+                                <th>Attendance %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr>
+                                <td colspan="6" class="loading-text">Generate a report to view data</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Settings Page -->
+            <section id="settings" class="page">
+                <div class="page-header">
+                    <h2>System Settings</h2>
+                    <button id="saveSettingsBtn" class="primary-btn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+
+                <div class="settings-container">
+                    <div class="settings-card">
+                        <h3>General Settings</h3>
+                        <div class="setting-item">
+                            <label for="systemName">System Name:</label>
+                            <input type="text" id="systemName" value="GCT Attendance System">
+                        </div>
+                        <div class="setting-item">
+                            <label for="academicYear">Academic Year:</label>
+                            <input type="text" id="academicYear" value="2023-2024">
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>Departments</h3>
+                        <div class="department-list" id="departmentList">
+                            <div class="department-item">
+                                <input type="text" value="Computer Science" readonly>
+                                <button class="edit-btn"><i class="fas fa-edit"></i></button>
+                                <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                            </div>
+                            <div class="department-item">
+                                <input type="text" value="Electrical Engineering" readonly>
+                                <button class="edit-btn"><i class="fas fa-edit"></i></button>
+                                <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <button id="addDepartmentBtn" class="secondary-btn">
+                            <i class="fas fa-plus"></i> Add Department
+                        </button>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>User Account</h3>
+                        <div class="setting-item">
+                            <label for="currentUsername">Username:</label>
+                            <input type="text" id="currentUsername" value="admin" readonly>
+                        </div>
+                        <div class="setting-item">
+                            <label for="newPassword">New Password:</label>
+                            <input type="password" id="newPassword">
+                        </div>
+                        <div class="setting-item">
+                            <label for="confirmPassword">Confirm Password:</label>
+                            <input type="password" id="confirmPassword">
+                        </div>
+                        <button id="changePasswordBtn" class="secondary-btn">Change Password</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="studentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="studentModalTitle">Add New Student</h2>
+                <button class="close-btn" id="closeStudentModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="studentForm">
+                    <div class="form-group">
+                        <label for="studentRollNo">Roll No:</label>
+                        <input type="text" id="studentRollNo" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentName">Name:</label>
+                        <input type="text" id="studentName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentDepartment">Department:</label>
+                        <select id="studentDepartment" required>
+                            <option value="">Select Department</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentYear">Year:</label>
+                        <select id="studentYear" required>
+                            <option value="">Select Year</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="studentEmail">Email:</label>
+                        <input type="email" id="studentEmail">
+                    </div>
+                    <div class="form-group">
+                        <label for="studentPhone">Phone:</label>
+                        <input type="tel" id="studentPhone">
+                    </div>
+                    <input type="hidden" id="studentId">
+                    <div class="form-actions">
+                        <button type="button" class="secondary-btn" id="cancelStudentBtn">Cancel</button>
+                        <button type="submit" class="primary-btn" id="saveStudentBtn">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="batchAttendanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Batch Attendance</h2>
+                <button class="close-btn" id="closeBatchModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="batchAttendanceForm">
+                    <div class="form-group">
+                        <label for="batchDate">Date:</label>
+                        <input type="date" id="batchDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchDepartment">Department:</label>
+                        <select id="batchDepartment" required>
+                            <option value="">Select Department</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchYear">Year:</label>
+                        <select id="batchYear" required>
+                            <option value="">Select Year</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batchStatus">Status:</label>
+                        <select id="batchStatus" required>
+                            <option value="">Select Status</option>
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="secondary-btn" id="cancelBatchBtn">Cancel</button>
+                        <button type="submit" class="primary-btn" id="saveBatchBtn">Mark Attendance</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirm Action</h2>
+                <button class="close-btn" id="closeConfirmModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Are you sure you want to proceed?</p>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" id="cancelConfirmBtn">Cancel</button>
+                    <button type="button" class="danger-btn" id="confirmActionBtn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" type="module"></script>
+    <script src="js/dashboard.js" type="module"></script>
+    <script src="js/students.js" type="module"></script>
+    <script src="js/attendance.js" type="module"></script>
+    <script src="js/reports.js" type="module"></script>
+    <script src="js/settings.js" type="module"></script>
+</body>
+</html>
+

@@ -231,6 +231,14 @@ Batch , Year, Section, Student, Attendance
 
 '''
 
+@router.get("/get_departments", tags=["Admin"])
+async def get_departments(
+    db: AsyncSession = Depends(get_session),
+    current_user=Depends(get_current_user),
+):
+
+    return await AttendanceService(db).get_departments()
+
 
 @router.post("/create_department/", tags=["Admin"])
 async def create_department(

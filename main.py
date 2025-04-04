@@ -1,7 +1,9 @@
 import asyncio
 from json import JSONDecodeError
+import os
 
 from fastapi.concurrency import asynccontextmanager
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -71,11 +73,17 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="templates")
-app.mount("/templates/static", StaticFiles(directory="./templates/static"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
-async def read_root(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+# @app.get("/")
+# async def read_root(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
+
+# Root endpoint to serve the HTML file
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    with open("static/index.html", "r") as file:
+        return HTMLResponse(content=file.read(), media_type="text/html")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -87,11 +95,33 @@ async def lifespan(app: FastAPI):
 app.router.lifespan_context = lifespan
 
 
+# Serve index.html for the root route and any unmatched route
+# @app.get("/{full_path:path}")
+# async def serve_react_app(full_path: str):
+#     if full_path == "":
+#         full_path = "index.html"
+        
+#     file_path = os.path.join("templates", full_path)
+#     # Check if the file exists in the static folder (for JS, CSS, etc.)
+#     if os.path.exists(file_path):
+#         return FileResponse(file_path)
+#     # Default to index.html for unmatched paths (React will handle routing)
+#     return FileResponse(os.path.join("templates", "index.html"))
+
+# # Catch-all route for frontend
+# @app.get("/{full_path:path}")
+# async def serve_frontend(full_path: str):
+#     # Exclude API and static file paths from the catch-all route
+#     if full_path.startswith("api/") or full_path.startswith("static/"):
+#         raise HTTPException(status_code=404, detail="Not Found")
+#     return FileResponse("templates/index.html")
+
+
 
 from app.api.attendance.routers import router as attendance_router
 from app.api.auth.routers import router as auth_router
-app.include_router(attendance_router)
-app.include_router(auth_router)
+app.include_router(attendance_router,prefix="/api")
+app.include_router(auth_router,prefix="/api")
 
 
 if __name__ == "__main__":
