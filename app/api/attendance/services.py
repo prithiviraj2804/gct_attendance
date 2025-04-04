@@ -54,18 +54,35 @@ class AttendanceService:
         Fetch all students from the section assigned to the faculty.
         Admins can view all students.
         """
-            # 🔹 Ensure the faculty is assigned to a section
+        # 🔹 Ensure the faculty is assigned to a section
         if not user.section_id:
             raise HTTPException(status_code=403, detail="Access Denied: No section assigned.")
-            
-            # 🔹 Fetch students in the faculty's section
-        query = select(Student).where(Student.section_id == user.section_id).join(Sec)
+        
+        # 🔹 Fetch students in the faculty's section along with section name and year
+        query = (
+            select(Student, Section.name.label("section_name"), Student.year)
+            .join(Section, Student.section_id == Section.id)
+            .where(Student.section_id == user.section_id)
+        )
 
         result = await self.db.execute(query)
-        students = result.scalars().all()
+        students = result.all()
 
-        return students
-    
+        # Format the response to include section name and year
+        formatted_students = [
+            {
+                "id": student.id,
+                "name": student.name,
+                "section_id": student.section_id,
+                "section_name": section_name,
+                "year": student.year,
+            }
+            for student, section_name, student.year in students
+        ]
+
+        return formatted_students
+
+        
     async def get_student(self, student_id):
         """
         Fetch

@@ -6,95 +6,94 @@ document.addEventListener("DOMContentLoaded", () => {
   // DOM Elements
   const addStudentBtn = document.getElementById("addStudentBtn");
   const studentsTableBody = document.getElementById("studentsTableBody");
-  const uploadStudentsBtn = document.createElement("button");
 
-  // Add "Upload Students" button dynamically
-  uploadStudentsBtn.id = "uploadStudentsBtn";
-  uploadStudentsBtn.textContent = "Upload Students";
-  uploadStudentsBtn.className = "primary-btn";
-  studentsPage.appendChild(uploadStudentsBtn);
-
-  // Create Upload Modal dynamically
-  const uploadStudentsModal = document.createElement("div");
-  uploadStudentsModal.id = "uploadStudentsModal";
-  uploadStudentsModal.className = "modal";
-  uploadStudentsModal.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Upload Students</h2>
-        <button class="close-btn" id="closeUploadModal">&times;</button>
+  // Create Add Student Modal dynamically
+  function createAddStudentModal() {
+    const addStudentModal = document.createElement("div");
+    addStudentModal.id = "addStudentModal";
+    addStudentModal.className = "modal";
+    addStudentModal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Add New Student</h2>
+          <button class="close-btn" id="closeAddStudentModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="addStudentForm">
+            <div class="form-group">
+              <label for="studentName">Student Name:</label>
+              <input type="text" id="studentName" name="studentName" placeholder="Enter student name" required>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Add Student</button>
+              <button type="button" class="secondary-btn" id="cancelAddStudentBtn">Cancel</button>
+            </div>
+          </form>
+        </div>
       </div>
-      <div class="modal-body">
-        <form id="uploadStudentsForm">
-          <div class="form-group">
-            <label for="studentsFile">Select Excel File:</label>
-            <input type="file" id="studentsFile" accept=".xlsx, .xls" required>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="primary-btn">Upload</button>
-            <button type="button" class="secondary-btn" id="cancelUploadBtn">Cancel</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(uploadStudentsModal);
+    `;
+    document.body.appendChild(addStudentModal);
+  }
 
-  // Modal DOM Elements
-  const closeUploadModal = document.getElementById("closeUploadModal");
-  const cancelUploadBtn = document.getElementById("cancelUploadBtn");
-  const uploadStudentsForm = document.getElementById("uploadStudentsForm");
-  const studentsFile = document.getElementById("studentsFile");
+  // Initialize modal
+  createAddStudentModal();
 
-  // Open Upload Modal
-  uploadStudentsBtn.addEventListener("click", () => {
-    uploadStudentsModal.classList.add("active");
+  // Modal DOM Elements (after creation)
+  const addStudentModal = document.getElementById("addStudentModal");
+  const closeAddStudentModal = document.getElementById("closeAddStudentModal");
+  const cancelAddStudentBtn = document.getElementById("cancelAddStudentBtn");
+  const addStudentForm = document.getElementById("addStudentForm");
+
+  // Open Add Student Modal
+  addStudentBtn.addEventListener("click", () => {
+    addStudentModal.classList.add("active");
+    addStudentForm.reset(); // Clear the form when opened
   });
 
-  // Close Upload Modal
-  closeUploadModal.addEventListener("click", () => {
-    uploadStudentsModal.classList.remove("active");
-  });
+  // Close Add Student Modal
+  function closeModal() {
+    addStudentModal.classList.remove("active");
+    addStudentForm.reset();
+  }
 
-  cancelUploadBtn.addEventListener("click", () => {
-    uploadStudentsModal.classList.remove("active");
-  });
+  closeAddStudentModal.addEventListener("click", closeModal);
+  cancelAddStudentBtn.addEventListener("click", closeModal);
 
-  // Handle File Upload
-  uploadStudentsForm.addEventListener("submit", (e) => {
+  // Handle Add Student Form Submission
+  addStudentForm.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    const file = studentsFile.files[0];
-    if (!file) {
-      alert("Please select a file to upload.");
+    // Accessing the student name from the form input correctly
+    const studentName = addStudentForm.studentName.value.trim();
+    console.log("Student Name:", studentName); // For debugging
+    if (!studentName) {
+      alert("Student name cannot be empty.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     const token = localStorage.getItem("authToken");
 
-    fetch("/api/upload_students/", {
+    fetch("/api/students/", {
       method: "POST",
       headers: {
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: formData,
+      body: JSON.stringify({ name: studentName }),
     })
       .then((response) => response.json())
       .then((data) => {
-        if (data.success) {
-          alert("Students uploaded successfully!");
-          uploadStudentsModal.classList.remove("active");
+        if (data.id) {
+          alert("Student added successfully!");
+          closeModal();
           loadStudents(); // Reload the students table
         } else {
-          alert(data.message || "Failed to upload students.");
+          alert(data.message || "Failed to add student.");
         }
       })
       .catch((error) => {
-        console.error("Error uploading students:", error);
-        alert("An error occurred while uploading the students.");
+        console.error("Error adding student:", error);
+        alert("An error occurred while adding the student.");
       });
   });
 
@@ -132,11 +131,46 @@ document.addEventListener("DOMContentLoaded", () => {
     students.forEach((student) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${student.id}</td>
+        <td>${student.section_name}</td>
         <td>${student.name}</td>
-        <td>${student.section_id}</td>
+        <td>${student.section_id || "N/A"}</td>
+        <td>${student.year}</td>
+        <td>
+          <button class="delete-btn" data-id="${student.id}"><i class="fas fa-trash"></i></button>
+        </td>
       `;
       studentsTableBody.appendChild(tr);
+
+      // Add event listener for delete button
+      const deleteBtn = tr.querySelector(".delete-btn");
+      deleteBtn.addEventListener("click", () => deleteStudent(student.id));
     });
+  }
+
+  // Function to delete a student
+  function deleteStudent(studentId) {
+    const token = localStorage.getItem("authToken");
+
+    if (!confirm("Are you sure you want to delete this student?")) return;
+
+    fetch(`/api/students/${studentId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.message) {
+          alert("Student deleted successfully!");
+          loadStudents(); // Reload the students table
+        } else {
+          alert(data.message || "Failed to delete student.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error deleting student:", error);
+        alert("An error occurred while deleting the student.");
+      });
   }
 });

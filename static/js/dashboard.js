@@ -86,18 +86,25 @@ function loadDashboardData() {
   const recentActivityList = document.getElementById("recentActivityList")
 
   // Fetch dashboard stats
-  fetch("/api/dashboard/stats", {
+  fetch("/api/students", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   })
     .then((response) => response.json())
     .then((data) => {
-      if (data.success) {
-        totalStudents.textContent = data.stats.totalStudents
-        presentToday.textContent = data.stats.presentToday
-        absentToday.textContent = data.stats.absentToday
-        attendanceRate.textContent = data.stats.attendanceRate + "%"
+      if (data && Array.isArray(data)) {
+        console.log(data)
+        totalStudents.textContent = data.length
+        // Assuming stats are calculated separately
+        const stats = {
+          presentToday: 2, // Example value
+          absentToday: 1,  // Example value
+          attendanceRate: ((2 / data.length) * 100).toFixed(2), // Example calculation
+        }
+        presentToday.textContent = stats.presentToday
+        absentToday.textContent = stats.absentToday
+        attendanceRate.textContent = stats.attendanceRate + "%"
       } else {
         console.error("Failed to load dashboard stats:", data.message)
       }
@@ -105,7 +112,6 @@ function loadDashboardData() {
     .catch((error) => {
       console.error("Error loading dashboard stats:", error)
     })
-
   // Fetch recent activities
   fetch("/api/dashboard/activities", {
     headers: {

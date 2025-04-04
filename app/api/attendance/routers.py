@@ -50,7 +50,7 @@ async def upload_students(
     return result
 
 
-@router.get("/students", response_model=List[StudentResponse], tags=["Students"])
+@router.get("/students", tags=["Students"])
 async def fetch_students(
     db: AsyncSession = Depends(get_session),
     user=Depends(get_current_user),
