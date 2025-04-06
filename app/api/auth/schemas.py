@@ -4,6 +4,12 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+'''
+============================================
+User Schemas
+===========================================
+
+'''
 
 class UserCreate(BaseModel):
     name: str
@@ -20,10 +26,8 @@ class UserUpdate(BaseModel):
     role_id : Optional[UUID] = None
     section_id: Optional[UUID] = None
 
-
 class RoleforUser(BaseModel):
     name: str
-
 
 class UserResponse(BaseModel):
     id: UUID
@@ -33,6 +37,12 @@ class UserResponse(BaseModel):
     section_id: Optional[UUID] = None
 
 
+'''
+============================================
+Role Schemas
+===========================================
+
+'''
 
 class RoleCreate(BaseModel):
     name: str
@@ -41,12 +51,12 @@ class RoleUpdate(BaseModel):
     name : Optional[str]
 
 
-
 class RoleResponse(BaseModel):
     name : str
     id: UUID
     created_at : datetime
     updated_at : datetime
+
 
 class LoginSchema(BaseModel):
     username: str

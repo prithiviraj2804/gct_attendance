@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import Enum
 import uuid
-from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Integer, String, ForeignKey, UUID, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, ForeignKey, UUID, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.core.database import Base
+from sqlalchemy.dialects.postgresql import JSONB
 
 # Department Model
 class Department(Base):
@@ -72,14 +73,12 @@ class Timetable(Base):
     timetable_slots = relationship("TimetableSlot", back_populates="timetable") 
 
 
-
-
 class TimetableSlot(Base):
     __tablename__ = 'timetable_slots'
 
     timetable_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('timetables.id'), nullable=False)
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 = Monday, 2 = Tuesday, etc.
-    schedule: Mapped[dict] = mapped_column(JSON, nullable=False)  # Store the day's schedule as a JSON object
+    schedule: Mapped[dict] = mapped_column(JSONB, nullable=False)  # Store the day's schedule as a JSONB object
 
     timetable = relationship("Timetable", back_populates="timetable_slots")
 
@@ -91,7 +90,7 @@ class Attendance(Base):
     date: Mapped[datetime.date] = mapped_column(Date, nullable=False, index=True)
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 = Monday, 2 = Tuesday, etc.
     hour: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 to 7 (or more if needed)
-    attendance_data: Mapped[dict] = mapped_column(JSON, nullable=False)  # {"student_id_1": true, "student_id_2": false}
+    attendance_data: Mapped[dict] = mapped_column(JSONB, nullable=False)  # {"student_id_1": true, "student_id_2": false}
 
     section = relationship("Section", back_populates="attendances")
     __table_args__ = (
