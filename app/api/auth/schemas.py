@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.api.attendance.models import Section
+
 '''
 ============================================
 User Schemas
@@ -29,12 +31,17 @@ class UserUpdate(BaseModel):
 class RoleforUser(BaseModel):
     name: str
 
+class SectionforUser(BaseModel):
+    name: str
+    id: UUID
+
 class UserResponse(BaseModel):
     id: UUID
     name: str
     username: str
     role : RoleforUser
     section_id: Optional[UUID] = None
+    section: Optional[SectionforUser] = None
 
 
 '''

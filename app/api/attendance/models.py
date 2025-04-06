@@ -1,10 +1,14 @@
+import uuid
 from datetime import datetime
 from enum import Enum
-import uuid
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, ForeignKey, UUID, UniqueConstraint
-from sqlalchemy.orm import relationship, Mapped, mapped_column
-from app.core.database import Base
+
+from sqlalchemy import (UUID, Boolean, Column, Date, DateTime, ForeignKey,
+                        Integer, String, UniqueConstraint)
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+
 
 # Department Model
 class Department(Base):

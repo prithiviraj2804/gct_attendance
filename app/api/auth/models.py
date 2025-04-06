@@ -10,6 +10,12 @@ from sqlalchemy.orm import Session
 from app.utils.password_utils import get_password_hash
 from sqlalchemy.orm import validates
 
+'''
+============================================
+User Models
+===========================================
+
+'''
 
 class User(Base):
     __tablename__ = "users"
@@ -18,12 +24,12 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
     role_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
+        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False,unique=True)
     role = relationship("Role", back_populates="users", lazy='joined')
 
     # 🔹 Assign User to a Section (Only Faculty Users)
     section_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sections.id"), nullable=True)
-    section = relationship("Section", back_populates="users", lazy='joined')
+    section = relationship("Section", back_populates="users", lazy='selectin')
     
 
 @event.listens_for(User.__table__, 'after_create')
@@ -40,6 +46,14 @@ def insert_default_admin_user(target, connection, **kw):
             role_id=admin_role.id
         ))
         session.commit()
+
+
+'''
+============================================
+Role Models
+===========================================
+
+'''
 
 class Role(Base):
     __tablename__ = "roles"
