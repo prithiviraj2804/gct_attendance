@@ -1,9 +1,9 @@
 import io
 import time
-from datetime import datetime
+from datetime import date, datetime
 from email import message
 from typing import List
-from uuid import UUID
+from uuid import uuid4
 
 import pandas as pd
 from fastapi import HTTPException
@@ -168,9 +168,7 @@ class AttendanceService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def mark_attendance(self, attendance_data):
-        section_id = attendance_data.section_id
-
+    async def mark_attendance(self, section_id, attendance_data):
         # Validate the section
         query = select(Section).where(Section.id == section_id)
         result = await self.db.execute(query)
@@ -178,10 +176,57 @@ class AttendanceService:
         if not section:
             raise HTTPException(status_code=404, detail="Section not found")
 
+        # Fetch all valid student IDs for the given section
+        query = select(Student.id).where(Student.section_id == section_id)
+        result = await self.db.execute(query)
+        valid_student_ids = {str(student_id) for student_id, in result.all()}
+
+        # Ensure all student IDs of the section are passed from the frontend
+        passed_student_ids = set()
+        for record in attendance_data.records:
+            passed_student_ids.update(record.students.keys())
+
+        missing_ids = valid_student_ids - passed_student_ids
+        if missing_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing student IDs for the section: {', '.join(missing_ids)}"
+            )
+
         for record in attendance_data.records:
             day_of_week = record.day_of_week
             hour = record.hour
             students = record.students
+
+            # Extract the list of student IDs from the attendance data
+            attendance_student_ids = set(students.keys())
+
+            # Check if all provided student IDs belong to the section
+            invalid_ids = attendance_student_ids - valid_student_ids
+            if invalid_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid student IDs for the section: {', '.join(invalid_ids)}"
+                )
+
+            # Check if the hour and day_of_week are available in the timetable
+            query = (
+                select(TimetableSlot)
+                .join(Timetable, TimetableSlot.timetable_id == Timetable.id)
+                .where(
+                    Timetable.section_id == section_id,
+                    TimetableSlot.day_of_week == day_of_week,
+                    TimetableSlot.schedule[f"hour_{hour}"].isnot(None)
+                )
+            )
+            result = await self.db.execute(query)
+            timetable_slot = result.scalars().first()
+
+            if not timetable_slot:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No timetable entry found for day {day_of_week} and hour {hour}."
+                )
 
             # Check for existing attendance for the given section, date, day, and hour
             query = select(Attendance).where(
@@ -194,47 +239,132 @@ class AttendanceService:
             existing_attendance = result.scalars().first()
 
             if existing_attendance:
-                # Update existing attendance record
-                existing_data = existing_attendance.attendance_data
-
-                # Merge existing data with new data
-                for student_id, is_present in students.items():
-                    existing_data[str(student_id)] = is_present
-
-                # Update the record in the database
-                existing_attendance.attendance_data = existing_data
-                await self.db.commit()
-
-            else:
-                # Create a new attendance record if not exists
-                new_attendance = Attendance(
-                    section_id=section_id,
-                    date=attendance_data.date,
-                    day_of_week=day_of_week,
-                    hour=hour,
-                    attendance_data=students
+                raise HTTPException(
+                    status_code=400,
+                    detail="Attendance already marked for this date and hour."
                 )
-                self.db.add(new_attendance)
-                await self.db.commit()
+
+            # Create a new attendance record if not exists
+            new_attendance = Attendance(
+                section_id=section_id,
+                date=attendance_data.date,
+                day_of_week=day_of_week,
+                hour=hour,
+                attendance_data=students
+            )
+            self.db.add(new_attendance)
+            await self.db.commit()
 
         return {"message": "Attendance marked successfully"}
 
-    async def get_section_attendance(self, section_id):
-        if not section_id:
-            raise HTTPException(status_code=404,
-                                detail="Section Not Found")
-        query = await self.db.execute(select(Attendance).where(Attendance.section_id == section_id).filter(Attendance.is_present == True))
-        result = query.scalars().all()
-        return result
+    async def get_section_attendance(self, section_id: str) -> List[dict]:
+        # Validate the section
+        query = select(Section).where(Section.id == section_id)
+        result = await self.db.execute(query)
+        section = result.scalars().first()
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
 
-    async def get_attendance_by_subject(self, timetable_slot_id):
-        if not timetable_slot_id:
-            raise HTTPException(status_code=404,
-                                detail="Subject Not Found")
-        query = await self.db.execute(select(Attendance).where(Attendance.timetable_slot_id == timetable_slot_id))
-        result = query.scalars().all()
-        return result
+        # Fetch attendance records for the given section
+        query = select(Attendance).where(Attendance.section_id == section_id)
+        result = await self.db.execute(query)
+        attendance_records = result.scalars().all()
 
+        if not attendance_records:
+            raise HTTPException(status_code=404, detail="No attendance records found for this section.")
+    
+        print(attendance_records)
+
+        # Collect all student UUIDs from attendance records
+        student_uuids = set()
+        for record in attendance_records:
+            student_uuids.update(record.attendance_data.keys())
+
+        if not student_uuids:
+            raise HTTPException(status_code=404, detail="No students found in attendance records.")
+
+        # Fetch student names for the collected UUIDs
+        query = select(Student).where(Student.id.in_(student_uuids))
+        result = await self.db.execute(query)
+        students = result.scalars().all()
+
+        # Map student UUIDs to their names
+        student_map = {str(student.id): student.name for student in students}
+
+        # Format attendance records with student names
+        formatted_records = []
+        for record in attendance_records:
+            formatted_students = [
+                {
+                    "id": student_id,
+                    "name": student_map.get(student_id, "Unknown"),
+                    "is_present": record.attendance_data.get(student_id, False)
+                }
+                for student_id in record.attendance_data.keys()
+            ]
+
+            formatted_records.append({
+                "date": record.date.isoformat(),
+                "day_of_week": record.day_of_week,
+                "hour": record.hour,
+                "students": formatted_students
+            })
+
+        return formatted_records
+
+    async def get_attendance_table(self, section_id: str, date: date, day_of_week: int):
+        # Validate the section
+        query = select(Section).where(Section.id == section_id)
+        result = await self.db.execute(query)
+        section = result.scalars().first()
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+
+        # Fetch attendance records for the given section, date, and day
+        query = select(Attendance).where(
+            Attendance.section_id == section_id,
+            Attendance.date == date,
+            Attendance.day_of_week == day_of_week
+        )
+        result = await self.db.execute(query)
+        attendance_records = result.scalars().all()
+
+        # If no attendance records exist for the given date, return an error
+        if not attendance_records:
+            raise HTTPException(
+                status_code=404,
+                detail="No attendance records found for the given date and day."
+            )
+
+        # Fetch all students of the section
+        query = select(Student.id, Student.name).where(Student.section_id == section_id)
+        result = await self.db.execute(query)
+        students = result.all()
+
+        if not students:
+            raise HTTPException(status_code=404, detail="No students found for this section.")
+
+        # Map student ID to name
+        student_map = {str(student.id): student.name for student in students}
+
+        # Initialize the attendance table structure
+        attendance_table = [
+            {"serial_number": idx + 1, "name": student.name, "hours": ["Not Marked"] * 7}
+            for idx, student in enumerate(students)
+        ]
+
+        # Process attendance data
+        for record in attendance_records:
+            for student_id, is_present in record.attendance_data.items():
+                # Find the student in the table
+                for row in attendance_table:
+                    if row["name"] == student_map.get(student_id, "Unknown"):
+                        # Update the attendance for the specific hour
+                        hour_index = record.hour - 1  # Convert to zero-indexed
+                        row["hours"][hour_index] = "Present" if is_present else "Absent"
+                        break
+
+        return attendance_table
 
 '''
 ===================================================
@@ -504,6 +634,12 @@ class AdminService:
         await self.db.commit()
         return {"message": "Section record deleted successfully"}
 
+
+class TimetableService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+
     async def assign_timetable(self, section_id, slots):
         # Create a new timetable for the section
         timetable = Timetable(section_id=section_id)
@@ -515,34 +651,44 @@ class AdminService:
         day_wise_schedule = {}
         for slot in slots:
             day = slot.day_of_week
-            schedule = slot.schedule  # Extract the entire schedule dictionary
 
             # Initialize the day if not already present
             if day not in day_wise_schedule:
                 day_wise_schedule[day] = {}
 
-            # Iterate over the schedule dictionary to get hours and subjects
-            for hour, subject_details in schedule.items():
-                subject_name = subject_details.get("subject_name")
-                subject_code = subject_details.get("subject_code")
+            # Extract hour-wise data from the slot object
+            for hour in range(1, 8):  # 7 hours per day
+                hour_key = f"hour_{hour}"
+                subject_details = getattr(slot, hour_key, None)
 
-                # Add the slot to the day's schedule
-                day_wise_schedule[day][hour] = {
-                    "subject_name": subject_name,
-                    "subject_code": subject_code,
-                }
+                if subject_details:
+                    subject_name = getattr(subject_details, "subject_name", None)
+                    subject_code = getattr(subject_details, "subject_code", None)
+                    if not subject_name or not subject_code:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Invalid subject details provided."
+                        )
 
-        # Create timetable slots with compressed day-wise data
+                    # Add the slot to the day's schedule
+                    day_wise_schedule[day][hour_key] = {
+                        "id": str(uuid4()),  # Autogenerate a UUID
+                        "subject_name": subject_name,
+                        "subject_code": subject_code,
+                    }
+
+        # Create timetable slots with the structured day-wise data
         for day, schedule in day_wise_schedule.items():
             timetable_slot = TimetableSlot(
                 timetable_id=timetable.id,
                 day_of_week=day,
-                schedule=schedule  # Store the entire day schedule as a JSON object
+                schedule=schedule  # Store the entire day's schedule as a JSON object
             )
             self.db.add(timetable_slot)
 
         await self.db.commit()
         return timetable
+
 
     async def get_timetable(self, section_id):
         query = select(Timetable).where(Timetable.section_id == section_id)
@@ -557,3 +703,44 @@ class AdminService:
         slots = result.scalars().all()
 
         return slots
+    
+    async def update_timetable(self, timetable_data, section_id):
+        # Fetch the timetable from the database
+        query = await self.db.execute(select(Timetable).where(Timetable.section_id == section_id))
+        timetable = query.scalars().first()
+        if not timetable:
+            raise HTTPException(
+                detail="Timetable Not Found",
+                status_code=404
+            )
+
+        # Prepare a dictionary of fields to be updated
+        update_fields = {}
+
+        if timetable_data.slots is not None:
+            update_fields["slots"] = timetable_data.slots
+
+        # Only proceed if there are fields to update
+        if update_fields:
+            await self.db.execute(
+                Timetable.__table__.update().where(Timetable.section_id == section_id).values(update_fields)
+            )
+            await self.db.commit()
+            return {"message": "Timetable record updated successfully"}
+
+        raise HTTPException(
+            detail="No fields to update",
+            status_code=400
+        )
+
+    async def delete_timetable(self, section_id):
+        result = await self.db.execute(select(Timetable).where(Timetable.section_id == section_id))
+        timetable = result.scalars().first()
+        if not timetable:
+            raise HTTPException(
+                detail="Timetable Not Found",
+                status_code=404
+            )
+        await self.db.delete(timetable)
+        await self.db.commit()
+        return {"message": "Timetable record deleted successfully"}

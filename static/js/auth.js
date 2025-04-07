@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
       loginBtn.disabled = true
   
       // Make API request to login
-      fetch("/api/auth/login", {
+      fetch("/api/users/login", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

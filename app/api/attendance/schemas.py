@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 from uuid import UUID
 from fastapi import File, UploadFile
 from numpy import datetime64
@@ -59,27 +59,46 @@ class StudentResponse(BaseModel):
     section_id: UUID
 
 
+
 class StudentUUIDs(BaseModel):
     student_uuids: list[UUID]
 
     class Config:
         from_attributes = True
 
+from pydantic import BaseModel, Field
+from typing import Dict, List
+from uuid import UUID
+
+class HourSchedule(BaseModel):
+    subject_name: str
+    subject_code: str
+
+    class Config:
+        orm_mode = True
+
 class TimetableSlotCreate(BaseModel):
     day_of_week: int  # 1 to 6 (Mon-Sat)
-    schedule: Dict[str, Dict[str, str]]  # {"1": {"subject_name": "Math", "subject_code": "MAT101"}, ...}
+    hour_1: HourSchedule
+    hour_2: HourSchedule
+    hour_3: HourSchedule
+    hour_4: HourSchedule
+    hour_5: HourSchedule
+    hour_6: HourSchedule
+    hour_7: HourSchedule
 
     class Config:
         orm_mode = True
-
 
 class TimetableCreate(BaseModel):
-    section_id: UUID
-    slots: List[TimetableSlotCreate] = Field(..., description="List of timetable slots for each day")
+    slots: List[TimetableSlotCreate] = Field(
+        ..., 
+        description="List of timetable slots for each day (6 days with 7 hours each)"
+    )
 
     class Config:
         orm_mode = True
-
+        
 class TimetableSlotResponse(BaseModel):
     id: UUID
     timetable_id: UUID
@@ -114,5 +133,4 @@ class AttendanceRecord(BaseModel):
 # Batch attendance input
 class AttendanceBatchCreate(BaseModel):
     date: date
-    section_id: UUID
     records: List[AttendanceRecord]

@@ -1,10 +1,10 @@
 import io
-from datetime import datetime
+from datetime import date, datetime
 from typing import List
 from uuid import UUID
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -12,7 +12,7 @@ from app.api.attendance.schemas import (AttendanceBatchCreate,  BatchCreate, Dep
                                         SectionCreate, StudentCreate,
                                         StudentResponse, TimetableCreate, TimetableResponse,
                                         YearCreate)
-from app.api.attendance.services import AdminService, AttendanceService, StudentService
+from app.api.attendance.services import AdminService, AttendanceService, StudentService, TimetableService
 from app.core.database import get_session
 from app.utils.security import get_current_user
 from main import templates
@@ -139,7 +139,6 @@ async def delete_student(
 =======================================================
 '''
 
-
 @router.post("/timetable/{section_id}", tags=["Timetable"])
 async def assign_timetable_to_section(
     section_id: UUID,
@@ -158,7 +157,7 @@ async def assign_timetable_to_section(
             status_code=400, detail="Error: You are not assigned to any section.")
 
     # Assign timetable to the section
-    result = await AttendanceService(db).assign_timetable(section_id, timetable_data.slots)
+    result = await TimetableService(db).assign_timetable(section_id, timetable_data.slots)
     return {"message": "Timetable assigned successfully", "timetable": result}
 
 
@@ -177,8 +176,47 @@ async def get_timetable_for_section(
         raise HTTPException(
             status_code=400, detail="Error: You are not assigned to any section.")
 
-    timetable = await AttendanceService(db).get_timetable(section_id)
+    timetable = await TimetableService(db).get_timetable(section_id)
     return timetable
+
+@router.put("/timetable/{section_id}", tags=["Timetable"])
+async def update_timetable_for_section(
+    section_id: UUID,
+    timetable_data: TimetableCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
+):
+    if not current_user or current_user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+
+    # Ensure the faculty is assigned to a section
+    if not current_user.section_id:
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
+
+    # Update timetable for the section
+    result = await TimetableService(db).update_timetable(section_id, timetable_data.slots)
+    return {"message": "Timetable updated successfully", "timetable": result}
+
+@router.delete("/timetable/{section_id}", tags=["Timetable"])
+async def delete_timetable_for_section(
+    section_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
+):
+    if not current_user or current_user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+
+    # Ensure the faculty is assigned to a section
+    if not current_user.section_id:
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
+
+    # Delete timetable for the section
+    result = await TimetableService(db).delete_timetable(section_id)
+    return {"message": "Timetable deleted successfully", "timetable": result}
 
 
 '''
@@ -187,9 +225,9 @@ async def get_timetable_for_section(
 =======================================================
 '''
 
-
-@router.post("/mark_attendance")
+@router.post("/attendances",tags=["Attendance"])
 async def mark_attendance(
+    request: Request,
     attendance_data: AttendanceBatchCreate,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
@@ -207,14 +245,14 @@ async def mark_attendance(
         )
 
     # Call the attendance service to mark attendance
-    attendance = await AttendanceService(db).mark_attendance(attendance_data)
-    return {"message": "Attendance marked successfully", "details": attendance}
+    attendance = await AttendanceService(db).mark_attendance(current_user.section_id,attendance_data)
+    return attendance
 
-@router.get("/get_attendance")
+@router.get("/attendances",tags=["Attendance"])
 async def get_section_attendance(current_user = Depends(get_current_user),db : AsyncSession = Depends(get_session)):
     if not current_user or current_user.role.name != "faculty":
         raise HTTPException(
-            status_code=403, detail="Access Denied: Only faculty can view the timetable.")
+            status_code=403, detail="Access Denied: Only faculty can view the Attendance.")
 
     # Ensure the faculty is assigned to a section
     if not current_user.section_id:
@@ -224,7 +262,25 @@ async def get_section_attendance(current_user = Depends(get_current_user),db : A
     result = await  AttendanceService(db).get_section_attendance(current_user.section_id)
     return result
 
-@router.get("/get-attendance/{timetable_slot_id}")
+@router.get("/attendances/{section_id}/{date}/{day_of_week}",tags=["Attendance"])
+async def get_attendance_by_date(section_id: UUID, date: date, day_of_week: int,
+                                current_user = Depends(get_current_user),
+                                db : AsyncSession = Depends(get_session)):
+    # Check for faculty role
+    if not current_user or current_user.role.name != "faculty":
+        raise HTTPException(
+            status_code=403, detail="Access Denied: Only faculty can view the Attendance.")
+    
+    # Ensure the faculty is assigned to a section
+    if not current_user.section_id:
+        raise HTTPException(
+            status_code=400, detail="Error: You are not assigned to any section.")
+    
+    result = await AttendanceService(db).get_attendance_table(section_id, date,day_of_week)
+    return result
+
+
+@router.get("/attendances/{timetable_slot_id}",tags=["Attendance"])
 async def get_attendance_by_hour(timetable_slot_id: str,
                                 current_user = Depends(get_current_user),
                                 db : AsyncSession = Depends(get_session)):
@@ -304,7 +360,7 @@ async def delete_department(
     return await AdminService(db).delete_department(department_id)
 
 
-@router.post("/batch", tags=["Admin"])
+@router.post("/batches", tags=["Admin"])
 async def create_batch(
     batch_data: BatchCreate,
     db: AsyncSession = Depends(get_session),

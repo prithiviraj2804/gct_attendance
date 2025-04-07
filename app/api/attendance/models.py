@@ -71,7 +71,7 @@ class Student(Base):
 class Timetable(Base):
     __tablename__ = 'timetables'
 
-    section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False)
+    section_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False, unique=True)
 
     section = relationship("Section", back_populates="timetable")
     timetable_slots = relationship("TimetableSlot", back_populates="timetable") 
@@ -95,6 +95,7 @@ class Attendance(Base):
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 = Monday, 2 = Tuesday, etc.
     hour: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 to 7 (or more if needed)
     attendance_data: Mapped[dict] = mapped_column(JSONB, nullable=False)  # {"student_id_1": true, "student_id_2": false}
+
 
     section = relationship("Section", back_populates="attendances")
     __table_args__ = (
