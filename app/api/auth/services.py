@@ -182,6 +182,9 @@ class UserService:
         if user_data.section_id is not None:
             update_fields["section_id"] = user_data.section_id
 
+        if user_data.department_id is not None:
+            update_fields["department_id"] = user_data.department_id
+
         # Only proceed if there are fields to update
         if update_fields:
             await self.db.execute(

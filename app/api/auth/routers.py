@@ -73,7 +73,7 @@ async def get_users(current_user=Depends(get_current_user),db: AsyncSession = De
     if current_user.role.name == "admin":
         return await UserService(db).get_users()
     elif current_user.role.name == "hod":
-        return await UserService(db).get_users_by_hod(current_user.id)
+        return await UserService(db).get_users_by_hod(current_user.department_id)
     else:
         raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
