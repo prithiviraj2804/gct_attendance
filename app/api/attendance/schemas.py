@@ -17,6 +17,7 @@ class UploadFileSchema(BaseModel):
 
 class DepartmentCreate(BaseModel):
     name: str
+    hod_id: UUID
 
     class Config:
         from_attributes = True

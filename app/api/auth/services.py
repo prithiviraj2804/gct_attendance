@@ -4,6 +4,7 @@ from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy import select
 
+from app.api.attendance.models import Department
 from app.api.auth.models import Role, User
 from app.utils.password_utils import get_password_hash, verify_password
 from app.utils.security import create_access_token
@@ -113,6 +114,17 @@ class UserService:
         users = result.scalars().all()
         return users
     
+
+    async def get_users_by_hod(self, hod_id):
+        result = await self.db.execute(select(User).where(User.department_id == hod_id))
+        if not result:
+            raise HTTPException(
+                detail={"message": "No Users Found"},
+                status_code=404
+            )
+        users = result.scalars().all()
+        return users
+
     async def get_user(self, user_id):
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
@@ -135,6 +147,7 @@ class UserService:
                         name=user_data.name,
                         password=get_password_hash(user_data.password),
                         role_id=user_data.role_id,
+                        department_id=user_data.department_id,
                         section_id=user_data.section_id)
         self.db.add(new_user)
         await self.db.commit()

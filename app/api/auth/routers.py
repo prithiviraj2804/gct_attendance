@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth.schemas import LoginSchema, RoleCreate, RoleResponse, UserCreate, UserResponse, UserUpdate
 from app.api.auth.services import RoleService, UserService
 from app.core.database import get_session
-from app.utils.security import get_current_user
+from app.utils.security import can_create_user, get_current_user
 
 
 role_router = APIRouter(tags=["Role"])
@@ -57,18 +57,25 @@ User Routers
 
 user_router = APIRouter(tags=["User"])
 
+@user_router.get("/users/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def get_current_user_info(current_user=Depends(get_current_user)):
+    return current_user
+
 @user_router.post("/users",status_code=status.HTTP_201_CREATED)
 async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_session),current_user = Depends(get_current_user)):
-    if current_user.role.name != "admin":
-        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+    if not can_create_user(current_user, user_data.role_id):
+        raise HTTPException(status_code=403, detail=f"You are not authorized to create this Role")
     return await UserService(db).create_user(user_data)
 
 
 @user_router.get("/users", response_model=List[UserResponse],status_code=status.HTTP_200_OK)
 async def get_users(current_user=Depends(get_current_user),db: AsyncSession = Depends(get_session)):
-    if current_user.role.name != "admin":
+    if current_user.role.name == "admin":
+        return await UserService(db).get_users()
+    elif current_user.role.name == "hod":
+        return await UserService(db).get_users_by_hod(current_user.id)
+    else:
         raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
-    return await UserService(db).get_users()
 
 
 @user_router.get("/users/{user_id}", response_model=UserResponse,status_code=status.HTTP_200_OK)

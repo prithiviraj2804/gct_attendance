@@ -10,12 +10,40 @@ from sqlalchemy.orm import Session
 from app.utils.password_utils import get_password_hash
 from sqlalchemy.orm import validates
 
+
+'''
+============================================
+Role Models
+===========================================
+
+'''
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    users = relationship("User", back_populates="role", lazy='raise')
+
+
+@event.listens_for(Role.__table__, 'after_create')
+def insert_initial_roles(target, connection, **kw):
+    session = Session(bind=connection)
+    session.add_all([
+        Role(name='admin'),
+        Role(name='hod'),
+        Role(name='faculty')
+    ])
+    session.commit()
+
+    
 '''
 ============================================
 User Models
 ===========================================
 
 '''
+
 
 class User(Base):
     __tablename__ = "users"
@@ -24,13 +52,23 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
     role_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False,unique=True)
+        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False, unique=True)
     role = relationship("Role", back_populates="users", lazy='joined')
 
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)
+    department = relationship(
+        "Department",
+        back_populates="users",
+        lazy="selectin",
+        foreign_keys=[department_id]  # Explicitly specify the foreign key
+    )
+
     # 🔹 Assign User to a Section (Only Faculty Users)
-    section_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sections.id"), nullable=True)
+    section_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sections.id"), nullable=True)
     section = relationship("Section", back_populates="users", lazy='selectin')
-    
+
 
 @event.listens_for(User.__table__, 'after_create')
 def insert_default_admin_user(target, connection, **kw):
@@ -43,31 +81,9 @@ def insert_default_admin_user(target, connection, **kw):
             username='admin',
             name='Administrator',
             password=hashed_password,
-            role_id=admin_role.id
+            role_id=admin_role.id,
+            department_id=None,
+            section_id=None
         ))
         session.commit()
 
-
-'''
-============================================
-Role Models
-===========================================
-
-'''
-
-class Role(Base):
-    __tablename__ = "roles"
-
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    users = relationship("User", back_populates="role", lazy='raise')
-
-
-
-@event.listens_for(Role.__table__, 'after_create')
-def insert_initial_roles(target, connection, **kw):
-    session = Session(bind=connection)
-    session.add_all([
-        Role(name='admin'),
-        Role(name='faculty')
-    ])
-    session.commit()

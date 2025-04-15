@@ -379,7 +379,8 @@ class AdminService:
 
     async def create_department(self, department_data):
 
-        new_department = Department(name=department_data.name)
+        new_department = Department(name=department_data.name,
+                                    hod_id = department_data.hod_id)
         self.db.add(new_department)
         await self.db.commit()
         return new_department

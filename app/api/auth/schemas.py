@@ -18,7 +18,8 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role_id: UUID
-    section_id: UUID
+    department_id: Optional[UUID] = None
+    section_id: Optional[UUID] = None
 
 
 class UserUpdate(BaseModel):
@@ -26,6 +27,7 @@ class UserUpdate(BaseModel):
     username : Optional[str] = None
     password: Optional[str] = None
     role_id : Optional[UUID] = None
+    department_id: Optional[UUID] = None
     section_id: Optional[UUID] = None
 
 class RoleforUser(BaseModel):
@@ -41,6 +43,7 @@ class UserResponse(BaseModel):
     username: str
     role : RoleforUser
     section_id: Optional[UUID] = None
+    department_id: Optional[UUID] = None
     section: Optional[SectionforUser] = None
 
 
