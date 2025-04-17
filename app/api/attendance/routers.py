@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.api.attendance.schemas import (AttendanceBatchCreate,  BatchCreate, DepartmentCreate,
-                                        SectionCreate, StudentCreate,
+from app.api.attendance.schemas import (AttendanceBatchCreate,  BatchCreate, BatchUpdate, DepartmentCreate, DepartmentUpdate,
+                                        SectionCreate, SectionUpdate, StudentCreate,
                                         StudentResponse, TimetableCreate, TimetableResponse,
-                                        YearCreate)
+                                        YearCreate, YearUpdate)
 from app.api.attendance.services import AdminService, AttendanceService, StudentService, TimetableService
 from app.core.database import get_session
 from app.utils.security import get_current_user
@@ -292,7 +292,7 @@ async def get_attendance_by_hour(timetable_slot_id: str,
 
 '''
 =======================================================
-Batch , Year, Section, Student, Attendance
+# Department Routers
 =======================================================
 
 '''
@@ -302,9 +302,8 @@ async def get_departments(
     db: AsyncSession = Depends(get_session),
     current_user=Depends(get_current_user),
 ):
-    if current_user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view departments.")
+    if current_user.role.name not in ["admin"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).get_departments()
 
@@ -313,11 +312,11 @@ async def get_departments(
 async def create_department(
     department_data: DepartmentCreate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can create departments.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
 
     return await AdminService(db).create_department(department_data)
 
@@ -325,61 +324,65 @@ async def create_department(
 async def get_department(
     department_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view departments.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
 
     return await AdminService(db).get_department(department_id)
 
 @router.put("/departments/{department_id}", tags=["Admin"])
 async def update_department(
     department_id: UUID,
-    department_data: DepartmentCreate,
+    department_data: DepartmentUpdate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can update departments.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
-    return await AdminService(db).update_department(department_id, department_data)
+
+    return await AdminService(db).update_department(department_data,department_id)
 
 
 @router.delete("/departments/{department_id}", tags=["Admin"])
 async def delete_department(
     department_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can delete departments.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
 
     return await AdminService(db).delete_department(department_id)
+
+'''
+=====================================================
+# Batches Router
+=====================================================
+'''
 
 
 @router.post("/batches", tags=["Admin"])
 async def create_batch(
     batch_data: BatchCreate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can create batches.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).create_batch(batch_data)
 
 @router.get("/batches", tags=["Admin"])
 async def get_batches(
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view batches.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).get_batches()
 
@@ -387,11 +390,10 @@ async def get_batches(
 async def get_batch(
     batch_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view batches.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).get_batch(batch_id)
 
@@ -399,13 +401,12 @@ async def get_batch(
 @router.put("/batches/{batch_id}", tags=["Admin"])
 async def update_batch(
     batch_id: UUID,
-    batch_data: BatchCreate,
+    batch_data: BatchUpdate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can update batches.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).update_batch(batch_id, batch_data)
 
@@ -413,14 +414,19 @@ async def update_batch(
 async def delete_batch(
     batch_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can delete batches.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).delete_batch(batch_id)
 
+
+'''
+=====================================================
+# Years Routers
+=====================================================
+'''
 
 
 
@@ -428,22 +434,20 @@ async def delete_batch(
 async def create_year(
     year_data: YearCreate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can create years.")
-
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+    
     return await AdminService(db).create_year(year_data)
 
 @router.get("/years", tags=["Admin"])
 async def get_years(
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view years.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).get_years()
 
@@ -451,61 +455,61 @@ async def get_years(
 async def get_year(
     year_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view years.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).get_year(year_id)
 
 @router.put("/years/{year_id}", tags=["Admin"])
 async def update_year(
     year_id: UUID,
-    year_data: YearCreate,
+    year_data: YearUpdate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can update years.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
-    return await AdminService(db).update_year(year_id, year_data)
+    return await AdminService(db).update_year(year_data, year_id)
 
 @router.delete("/years/{year_id}", tags=["Admin"])
 async def delete_year(
     year_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can delete years.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).delete_year(year_id)
 
-
+'''
+======================================================
+# Sections Routers
+======================================================
+'''
 
 @router.post("/sections", tags=["Admin"])
 async def create_section(
     section_data: SectionCreate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can create sections.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
     return await AdminService(db).create_section(section_data)
 
 @router.get("/sections", tags=["Admin"])
 async def get_sections(
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view sections.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
 
     return await AdminService(db).get_sections()
 
@@ -513,35 +517,35 @@ async def get_sections(
 async def get_section(
     section_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can view sections.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
 
     return await AdminService(db).get_section(section_id)
 
 @router.put("/sections/{section_id}", tags=["Admin"])
 async def update_section(
     section_id: UUID,
-    section_data: SectionCreate,
+    section_data: SectionUpdate,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can update sections.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
 
-    return await AdminService(db).update_section(section_id, section_data)
+
+    return await AdminService(db).update_section(section_data, section_id)
 
 @router.delete("/sections/{section_id}", tags=["Admin"])
 async def delete_section(
     section_id: UUID,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
-    if not user or user.role.name != "admin":
-        raise HTTPException(
-            status_code=403, detail="Access Denied: Only admins can delete sections.")
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
 
     return await AdminService(db).delete_section(section_id)

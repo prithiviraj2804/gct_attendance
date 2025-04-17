@@ -409,24 +409,16 @@ class AdminService:
                 status_code=404
             )
 
-        # Prepare a dictionary of fields to be updated
-        update_fields = {}
-
+        # Update only the provided fields
         if department_data.name is not None:
-            update_fields["name"] = department_data.name
+            department.name = department_data.name
 
-        # Only proceed if there are fields to update
-        if update_fields:
-            await self.db.execute(
-                Department.__table__.update().where(Department.id == department_id).values(update_fields)
-            )
-            await self.db.commit()
-            return {"message": "Department record updated successfully"}
+        if department_data.hod_id is not None:
+            department.hod_id = department_data.hod_id
 
-        raise HTTPException(
-            detail="No fields to update",
-            status_code=400
-        )
+        # Commit the changes
+        await self.db.commit()
+        return {"message": "Department record updated successfully"}
     
     async def delete_department(self, department_id):
         result = await self.db.execute(select(Department).where(Department.id == department_id))
@@ -464,7 +456,7 @@ class AdminService:
             raise HTTPException(status_code=404, detail="Batch not found.")
         return batch
     
-    async def update_batch(self, batch_data, batch_id):
+    async def update_batch(self, batch_id, batch_data):
         # Fetch the batch from the database
         query = await self.db.execute(select(Batch).where(Batch.id == batch_id))
         batch = query.scalars().first()
@@ -479,6 +471,9 @@ class AdminService:
 
         if batch_data.name is not None:
             update_fields["name"] = batch_data.name
+
+        if batch_data.department_id is not None:
+            update_fields["department_id"] = batch_data.department_id
 
         # Only proceed if there are fields to update
         if update_fields:
@@ -544,6 +539,9 @@ class AdminService:
 
         if year_data.name is not None:
             update_fields["name"] = year_data.name
+
+        if year_data.batch_id is not None:
+            update_fields["batch_id"] = year_data.batch_id
 
         # Only proceed if there are fields to update
         if update_fields:

@@ -22,6 +22,12 @@ class DepartmentCreate(BaseModel):
     class Config:
         from_attributes = True
 
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = None
+    hod_id: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
 
 class BatchCreate(BaseModel):
     name: str
@@ -30,6 +36,12 @@ class BatchCreate(BaseModel):
     class Config:
         from_attributes = True
 
+class BatchUpdate(BaseModel):
+    name: Optional[str] = None
+    department_id: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
 
 class YearCreate(BaseModel):
     name: str
@@ -38,10 +50,24 @@ class YearCreate(BaseModel):
     class Config:
         from_attributes = True
 
+class YearUpdate(BaseModel):
+    name: Optional[str] = None
+    batch_id: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+
 
 class SectionCreate(BaseModel):
     name: str
     year_id: UUID
+
+    class Config:
+        from_attributes = True
+
+class SectionUpdate(BaseModel):
+    name: Optional[str] = None
+    year_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

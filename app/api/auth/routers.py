@@ -64,7 +64,7 @@ async def get_current_user_info(current_user=Depends(get_current_user)):
 @user_router.post("/users",status_code=status.HTTP_201_CREATED)
 async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_session),current_user = Depends(get_current_user)):
     if not can_create_user(current_user, user_data.role_id):
-        raise HTTPException(status_code=403, detail=f"You are not authorized to create this Role")
+        raise HTTPException(status_code=403, detail=f"You are not authorized to create this User with this Role")
     return await UserService(db).create_user(user_data)
 
 
@@ -80,20 +80,20 @@ async def get_users(current_user=Depends(get_current_user),db: AsyncSession = De
 
 @user_router.get("/users/{user_id}", response_model=UserResponse,status_code=status.HTTP_200_OK)
 async def get_user_by_id(user_id: str,current_user=Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    if current_user.role.name != "admin":
+    if current_user.role.name not in ["admin", "hod"]:
         raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
     return await UserService(db).get_user(user_id)
 
 
 @user_router.put("/users/{user_id}",status_code=status.HTTP_200_OK)
 async def update_user(user_id: str, user_data: UserUpdate, current_user=Depends(get_current_user),db: AsyncSession = Depends(get_session)):
-    if current_user.role.name != "admin":
+    if current_user.role.name not in ["admin", "hod"]:
         raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
     return await UserService(db).update_user(user_id, user_data)
 
 @user_router.delete("/users/{user_id}",status_code=status.HTTP_200_OK)
 async def delete_user(user_id: str,current_user=Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    if current_user.role.name != "admin":
+    if current_user.role.name not in ["admin", "hod"]:
         raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
     return await UserService(db).delete_user(user_id)
 
