@@ -432,6 +432,24 @@ class AdminService:
         await self.db.commit()
         return {"message": "Department record deleted successfully"}
 
+    async def get_faculties_by_department(self, department_id):
+        # Validate the department
+        query = select(Department).where(Department.id == department_id)
+        result = await self.db.execute(query)
+        department = result.scalars().first()
+        if not department:
+            raise HTTPException(status_code=404, detail="Department not found")
+
+        # Fetch faculties in the given department
+        query = select(User).where(User.department_id == department_id)
+        result = await self.db.execute(query)
+        faculties = result.scalars().all()
+
+        if not faculties:
+            raise HTTPException(status_code=404, detail="No faculties found in this department.")
+
+        return faculties
+
     # 🔹 Create Batch (Only Admins)
 
     async def create_batch(self, batch_data):

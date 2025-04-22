@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.utils.password_utils import get_password_hash
 from sqlalchemy.orm import validates
+# from app.api.attendance.models import Department, Section, StaffSubjectSection
 
 
 '''
@@ -51,39 +52,50 @@ class User(Base):
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
-    role_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False, unique=True)
-    role = relationship("Role", back_populates="users", lazy='joined')
 
-    department_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)
-    department = relationship(
-        "Department",
-        back_populates="users",
-        lazy="selectin",
-        foreign_keys=[department_id]  # Explicitly specify the foreign key
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False
+    )
+    role: Mapped[Role] = relationship(
+        "Role", back_populates="users", lazy="joined"
     )
 
-    # 🔹 Assign User to a Section (Only Faculty Users)
-    section_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sections.id"), nullable=True)
-    section = relationship("Section", back_populates="users", lazy='selectin')
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True
+    )
+    department: Mapped["Department"] = relationship(
+        "Department",
+        back_populates="users",
+        foreign_keys=[department_id],
+        lazy="selectin",
+    )
 
+    section_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sections.id"), nullable=True
+    )
+    section: Mapped["Section"] = relationship(
+        "Section", back_populates="users", lazy="selectin"
+    )
+
+    teaching_assignments: Mapped[list["StaffSubjectSection"]] = relationship(
+        "StaffSubjectSection",
+        back_populates="user",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
 
 @event.listens_for(User.__table__, 'after_create')
 def insert_default_admin_user(target, connection, **kw):
     session = Session(bind=connection)
     admin_role = session.query(Role).filter_by(name='admin').first()
-    hashed_password = get_password_hash("admin@123")
-    print(f"Inserting admin with hashed password: {hashed_password}")
     if admin_role:
-        session.add(User(
-            username='admin',
-            name='Administrator',
-            password=hashed_password,
-            role_id=admin_role.id,
-            department_id=None,
-            section_id=None
-        ))
+        hashed = get_password_hash("admin@123")
+        session.add(
+            User(
+                username='admin',
+                name='Administrator',
+                password=hashed,
+                role_id=admin_role.id
+            )
+        )
         session.commit()
-

@@ -10,12 +10,11 @@ from sqlalchemy.future import select
 
 from app.api.attendance.schemas import (AttendanceBatchCreate,  BatchCreate, BatchUpdate, DepartmentCreate, DepartmentUpdate,
                                         SectionCreate, SectionUpdate, StudentCreate,
-                                        StudentResponse, TimetableCreate, TimetableResponse,
+                                        StudentResponse, TimetableCreate, 
                                         YearCreate, YearUpdate)
 from app.api.attendance.services import AdminService, AttendanceService, StudentService, TimetableService
 from app.core.database import get_session
 from app.utils.security import get_current_user
-from main import templates
 
 router = APIRouter()
 
@@ -357,6 +356,17 @@ async def delete_department(
 
 
     return await AdminService(db).delete_department(department_id)
+
+@router.get("/departments/{department_id}/faculties", tags=["Admin"])
+async def get_faculties_by_department(
+    department_id: UUID,
+    db: AsyncSession = Depends(get_session),
+    current_user=Depends(get_current_user),
+):
+    if current_user.role.name not in ["admin", "hod"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to access this resource")
+
+    return await AdminService(db).get_faculties_by_department(department_id)
 
 '''
 =====================================================
