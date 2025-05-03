@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import os
 from typing import Optional
+from uuid import UUID
 from jose import jwt
 from sqlalchemy import select
 from app.core.settings import settings
@@ -79,3 +80,47 @@ async def get_current_user(
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+
+def is_admin(current_user: User) -> bool:
+    if current_user.role.name != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are Not an Admin",
+        )
+
+
+def is_hod(current_user: User) -> bool:
+    if current_user.role.name != 'hod':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are Not an HOD",
+        )
+
+def is_faculty(current_user: User) -> bool:
+    if current_user.role.name != 'faculty':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are Not a Faculty",
+        )
+    
+    
+async def can_create_user(current_user: User, target_role_id: UUID, db: AsyncSession = Depends(get_session)) -> bool:
+    from app.api.auth.models import Role  # Import Role model if not already imported
+    # Fetch the target role from the database
+    result = await db.execute(select(Role).where(Role.id == target_role_id))
+    target_role = result.scalars().first()
+    if not target_role:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Target role not found",
+        
+        )
+
+    # Check permissions based on role hierarchy
+    if current_user.role.name == 'admin' and target_role.name == 'hod':
+        return True
+    elif current_user.role.name == 'hod' and target_role.name == 'faculty':
+        return True
+    return False

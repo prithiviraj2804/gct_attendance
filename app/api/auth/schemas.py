@@ -4,13 +4,22 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.api.attendance.models import Section
+
+'''
+============================================
+User Schemas
+===========================================
+
+'''
 
 class UserCreate(BaseModel):
     name: str
     username: str
     password: str
     role_id: UUID
-    section_id: UUID
+    department_id: Optional[UUID] = None
+    section_id: Optional[UUID] = None
 
 
 class UserUpdate(BaseModel):
@@ -18,12 +27,15 @@ class UserUpdate(BaseModel):
     username : Optional[str] = None
     password: Optional[str] = None
     role_id : Optional[UUID] = None
+    department_id: Optional[UUID] = None
     section_id: Optional[UUID] = None
-
 
 class RoleforUser(BaseModel):
     name: str
 
+class SectionforUser(BaseModel):
+    name: str
+    id: UUID
 
 class UserResponse(BaseModel):
     id: UUID
@@ -31,8 +43,16 @@ class UserResponse(BaseModel):
     username: str
     role : RoleforUser
     section_id: Optional[UUID] = None
+    department_id: Optional[UUID] = None
+    section: Optional[SectionforUser] = None
 
 
+'''
+============================================
+Role Schemas
+===========================================
+
+'''
 
 class RoleCreate(BaseModel):
     name: str
@@ -41,12 +61,12 @@ class RoleUpdate(BaseModel):
     name : Optional[str]
 
 
-
 class RoleResponse(BaseModel):
     name : str
     id: UUID
     created_at : datetime
     updated_at : datetime
+
 
 class LoginSchema(BaseModel):
     username: str
