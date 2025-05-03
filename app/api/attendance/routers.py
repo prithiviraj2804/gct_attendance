@@ -138,7 +138,7 @@ async def assign_timetable_to_section(
 async def get_timetable_for_section(
     section_id: UUID,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession =aw Depends(get_session)
 ):
     if not current_user or current_user.role.name != "faculty":
         raise HTTPException(status_code=403, detail="Access Denied: Only faculty can view the timetable.")
