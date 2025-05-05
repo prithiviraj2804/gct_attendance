@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import UUID, ForeignKey, String
+from sqlalchemy import UUID, ForeignKey, String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -9,16 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.utils.password_utils import get_password_hash
 from sqlalchemy.orm import validates
-# from app.api.attendance.models import Department, Section, StaffSubjectSection
-
 
 '''
 ============================================
 Role Models
 ===========================================
-
 '''
-
 
 class Role(Base):
     __tablename__ = "roles"
@@ -33,7 +29,8 @@ def insert_initial_roles(target, connection, **kw):
     session.add_all([
         Role(name='admin'),
         Role(name='hod'),
-        Role(name='faculty')
+        Role(name='faculty'),
+        Role(name='advisor')  # Added advisor role
     ])
     session.commit()
 
@@ -42,9 +39,7 @@ def insert_initial_roles(target, connection, **kw):
 ============================================
 User Models
 ===========================================
-
 '''
-
 
 class User(Base):
     __tablename__ = "users"
@@ -63,7 +58,7 @@ class User(Base):
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True
     )
-    department: Mapped["Department"] = relationship(
+    department: Mapped[dict] = relationship(
         "Department",
         back_populates="users",
         foreign_keys=[department_id],
@@ -73,15 +68,26 @@ class User(Base):
     section_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sections.id"), nullable=True
     )
-    section: Mapped["Section"] = relationship(
+    section: Mapped[dict] = relationship(
         "Section", back_populates="users", lazy="selectin"
     )
 
-    teaching_assignments: Mapped[list["StaffSubjectSection"]] = relationship(
+    # New field to mark a user as an advisor for a section
+    is_section_advisor: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    teaching_assignments: Mapped[list[dict]] = relationship(
         "StaffSubjectSection",
         back_populates="user",
         lazy="selectin",
         cascade="all, delete-orphan"
+    )
+
+    # New relationship for sections where user is advisor
+    advised_sections = relationship(
+        "Section", 
+        back_populates="advisor", 
+        foreign_keys="Section.advisor_id",
+        lazy="selectin"
     )
 
 @event.listens_for(User.__table__, 'after_create')

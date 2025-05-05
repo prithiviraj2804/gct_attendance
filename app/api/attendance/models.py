@@ -75,13 +75,25 @@ class Section(Base):
     year_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('years.id'), nullable=False
     )
+    
+    # Add advisor relationship
+    advisor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('users.id'), nullable=True
+    )
+    
     year: Mapped[Year] = relationship(
         "Year", back_populates="sections"
     )
 
     users: Mapped[list["User"]] = relationship(
-        "User", back_populates="section"
+        "User", back_populates="section", foreign_keys=[User.section_id]
     )
+    
+    # Add advisor relationship
+    advisor: Mapped["User"] = relationship(
+        "User", back_populates="advised_sections", foreign_keys=[advisor_id]
+    )
+    
     students: Mapped[list["Student"]] = relationship(
         "Student", back_populates="section"
     )
@@ -143,7 +155,6 @@ class StaffSubjectSection(Base):
     )
 
 
-
 # Student Model
 class Student(Base):
     __tablename__ = 'students'
@@ -157,6 +168,11 @@ class Student(Base):
         UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False)
 
     section = relationship("Section", back_populates="students")
+    
+    # Add relationship to attendance records
+    attendance_records: Mapped[list["StudentAttendance"]] = relationship(
+        "StudentAttendance", back_populates="student", cascade="all, delete-orphan"
+    )
 
 class Timetable(Base):
     __tablename__ = 'timetables'
@@ -193,17 +209,52 @@ class Attendance(Base):
     section_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('sections.id'), nullable=False
     )
+    subject_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('subjects.id'), nullable=False
+    )
+    faculty_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('users.id'), nullable=False
+    )
     attendance_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)
     hour: Mapped[int] = mapped_column(Integer, nullable=False)
-    attendance_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    
+    # Remove attendance_data field and use StudentAttendance records instead
+    # attendance_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     section: Mapped[Section] = relationship(
         "Section", back_populates="attendances"
     )
+    subject: Mapped[Subject] = relationship("Subject")
+    faculty: Mapped[User] = relationship("User")
+    
+    # Add relationship to student attendance records
+    student_records: Mapped[list["StudentAttendance"]] = relationship(
+        "StudentAttendance", back_populates="attendance", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint(
-            'section_id', 'attendance_date', 'day_of_week', 'hour', name='_unique_attendance'
+            'section_id', 'subject_id', 'attendance_date', 'day_of_week', 'hour', 
+            name='_unique_attendance'
         ),
+    )
+
+# New model to track individual student attendance
+class StudentAttendance(Base):
+    __tablename__ = 'student_attendances'
+    
+    attendance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('attendances.id'), primary_key=True
+    )
+    student_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('students.id'), primary_key=True
+    )
+    is_present: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    attendance: Mapped[Attendance] = relationship(
+        "Attendance", back_populates="student_records"
+    )
+    student: Mapped[Student] = relationship(
+        "Student", back_populates="attendance_records"
     )
